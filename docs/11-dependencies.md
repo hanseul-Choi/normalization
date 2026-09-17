@@ -38,4 +38,4 @@ CPU 기반, `import`로 쓰는 순수 Python 생태계 라이브러리를 우선
 - `regex`: Apache 2.0 / CNRI 계열 (확인 필요)
 - `langdetect`: Apache 2.0
 
-실제 도입 시 `pyproject.toml`의 optional-dependencies 그룹으로 분리 (`textnorm[full]` 설치 시 `ftfy`, `charset-normalizer`, `langdetect`, `emoji`, `unicodedata2`, `regex` 전부 포함, 기본 설치는 `regex`만 필수로 하고 나머지는 optional — 해당 기능 미사용 시 미설치 상태로도 핵심 파이프라인이 동작해야 함).
+실제 도입 시 `pyproject.toml`의 optional-dependencies 그룹으로 분리 (`secnorm[full]` 설치 시 `ftfy`, `charset-normalizer`, `langdetect`, `emoji`, `unicodedata2`, `regex` 전부 포함, 기본 설치는 `regex`만 필수로 하고 나머지는 optional — 해당 기능 미사용 시 미설치 상태로도 핵심 파이프라인이 동작해야 함).

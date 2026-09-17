@@ -1,8 +1,6 @@
-# textnorm (가칭)
+# secnorm
 
 의도적으로 난독화되거나 변형된 텍스트를 **표준화된 정규화 뷰(Normalized View)** 로 수렴시키는 CPU 기반 Python 라이브러리 기획.
-
-패키지명은 잠정(`textnorm`)이며 확정 전 검토가 필요하다 (`docs/13-roadmap.md`).
 
 ## 왜 필요한가
 
@@ -66,9 +64,9 @@ Normalized View (NormalizationResult)
 ## 예시 (API 초안)
 
 ```python
-import textnorm
+import secnorm
 
-result = textnorm.normalize(text)  # 기본 프리셋: security_balanced
+result = secnorm.normalize(text)  # 기본 프리셋: security_balanced
 
 result.normalized_text
 result.flags
@@ -97,4 +95,4 @@ result.language.primary_language
 
 ## 현재 상태
 
-기획 단계. 코드 구현은 아직 시작되지 않았으며, `docs/13-roadmap.md`의 Phase 0부터 순서대로 진행 예정.
+`docs/13-roadmap.md` Phase 0(프로젝트 뼈대) 진행 중. 핵심 데이터 모델, 파이프라인 실행 모델, span mapping은 구현됐고 실제 정규화 단계(1~7단계)는 아직 없음.
