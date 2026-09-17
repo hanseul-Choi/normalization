@@ -118,7 +118,13 @@ class NormalizationResult:
     pipeline_version: str
     rule_data_version: dict[str, str]
 
-    def to_dict(self, include_raw_text: bool = True) -> dict[str, Any]:
+    def evaluate_risk(self, scorer: Any | None = None) -> Any:
+        """Calculate and return consolidated RiskReport."""
+        from .risk import evaluate_risk
+
+        return evaluate_risk(self, scorer=scorer)
+
+    def to_dict(self, include_raw_text: bool = True, include_risk: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {
             "normalized_text": self.normalized_text,
             "normalized_variants": dict(self.normalized_variants),
@@ -134,7 +140,21 @@ class NormalizationResult:
             data["raw_text"] = self.raw_text
         else:
             data["raw_text"] = None
+
+        if include_risk:
+            data["risk_report"] = self.evaluate_risk().to_dict()
+
         return data
 
-    def to_json(self, include_raw_text: bool = True, *, indent: int | None = None) -> str:
-        return json.dumps(self.to_dict(include_raw_text=include_raw_text), ensure_ascii=False, indent=indent)
+    def to_json(
+        self,
+        include_raw_text: bool = True,
+        include_risk: bool = False,
+        *,
+        indent: int | None = None,
+    ) -> str:
+        return json.dumps(
+            self.to_dict(include_raw_text=include_raw_text, include_risk=include_risk),
+            ensure_ascii=False,
+            indent=indent,
+        )
