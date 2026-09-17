@@ -18,11 +18,12 @@
 - `security_balanced`(1~4단계 축소 버전)/`minimal` 프리셋 및 최상위 `secnorm.normalize()`, `secnorm.normalize_batch()`, `Pipeline` API
 - 결과 및 설정 직렬화 (`to_dict`, `to_json`, `from_json`, `from_file`), `py.typed` 마커, `hypothesis` 속성 기반 테스트 포함
 
-## Phase 2 — 통계/휴리스틱 단계 (5, 7단계)
+## Phase 2 — 통계/휴리스틱 단계 (5, 7단계) [완료]
 
-- 5단계 반복 문자 정규화 (카테고리별 cap)
-- 7단계 스크립트 비율 계산 + 하이브리드 언어 판별 + 구조 메타데이터
-- 6단계가 필요로 하는 "script ratio prepass" 인터페이스를 이 시점에 확정
+- 5단계 반복 문자 정규화 (카테고리별 cap: 일반문자 2, 한글자모/구두점/이모지 3, grapheme cluster/conjoining jamo 지원, 5회 이상 반복 시 excessive_repetition 플래그)
+- 7단계 스크립트 비율 계산 + 하이브리드 언어 판별(1차 스크립트 규칙, 2차 langdetect 폴백) + 구조 메타데이터(HTML, Markdown, URL, Email, Code block, 문장/단어 수, LTR)
+- 6단계가 필요로 하는 standalone "script ratio prepass" 인터페이스 (`compute_script_ratios`) 확정
+- `nlp_preprocessing` 프리셋(1~5단계, 7단계 on, structural 공백 모드) 및 `security_balanced` 프리셋의 5·7단계 통합 완료
 
 ## Phase 3 — 난독화 정규화 (6단계, 가장 리스크 높음)
 

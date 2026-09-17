@@ -40,3 +40,11 @@ def test_minimal_preset_idempotency(text: str):
     first = secnorm.normalize(text, preset="minimal")
     second = secnorm.normalize(first.normalized_text, preset="minimal")
     assert second.normalized_text == first.normalized_text
+
+
+@settings(max_examples=100)
+@given(st.text())
+def test_nlp_preprocessing_preset_idempotency(text: str):
+    first = secnorm.normalize(text, preset="nlp_preprocessing")
+    second = secnorm.normalize(first.normalized_text, preset="nlp_preprocessing")
+    assert second.normalized_text == first.normalized_text
