@@ -50,6 +50,13 @@
 - 실무 예제 스크립트 구축 (`examples/demo_adversarial_inspection.py`, `examples/demo_custom_step.py`, `examples/demo_batch_processing.py`)
 - sdist / wheel 빌드 및 `py.typed` 패키징 무결성 검증 완료
 
+## Phase 6 — 스트리밍 처리, 파일 I/O 및 빌드 도구 [완료]
+
+- 제너레이터 기반 대용량 스트리밍 정규화 API (`secnorm.normalize_stream`)
+- 파일 단위 스트리밍 변환 및 JSONL 지원 (`secnorm.normalize_file`)
+- CLI 파일 입출력 플래그 (`-i/--input`, `-o/--output`, `--format text|jsonl`)
+- UTS #39 Confusables 데이터 빌드 및 자동 갱신 스크립트 (`scripts/build_confusables.py`)
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
 - 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — v1은 실시간 단건 처리가 우선

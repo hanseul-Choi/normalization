@@ -72,13 +72,26 @@ print(result.normalized_text)  # "f.r.e.e m.0.n.e.y"
 print(result.normalized_variants["aggressive"])  # "free money"
 ```
 
-### 배치 처리
+### 배치 처리 및 스트리밍
 
 ```python
+# 다건 리스트 배치 처리
 results = secnorm.normalize_batch(
     ["Hello   world", "аpple.com", "coooool!"],
     preset="security_balanced",
     n_jobs=2,
+)
+
+# 대용량 이터러블 스트리밍 (제너레이터, 메모리 절약)
+for result in secnorm.normalize_stream(large_corpus_generator, chunk_size=1000, n_jobs=4):
+    process(result)
+
+# 대용량 파일 단위 스트리밍 정규화 (text 또는 jsonl 지원)
+processed_count = secnorm.normalize_file(
+    input_path="input_corpus.txt",
+    output_path="normalized_audit.jsonl",
+    preset="security_strict",
+    format="jsonl",
 )
 ```
 
@@ -135,6 +148,12 @@ secnorm "аpple.com" --preset security_strict
 
 # 전체 감사 결과 JSON 출력
 secnorm "аpple.com" --json
+
+# 파일 단위 일괄 변환 (텍스트 모드)
+secnorm -i input.txt -o output.txt --preset security_balanced
+
+# 파일 단위 감사 로그 생성 (JSONL 포맷)
+secnorm -i input.txt -o output.jsonl --format jsonl --preset security_strict
 
 # 파이프 입력 (stdin)
 cat input.txt | secnorm --preset llm_input_sanitize > output.txt
