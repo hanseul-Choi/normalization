@@ -44,6 +44,12 @@
 - CLI 구현 (`secnorm` 콘솔 스크립트 및 `python -m secnorm`, `--preset`, `--json`, `--no-raw` 지원)
 - 문서화 완성 (README 가이드, 사용 예제, `py.typed` 및 docstring 보강)
 
+## Phase 5 — CI/CD 자동화, 배포 준비 및 예제 [완료]
+
+- GitHub Actions CI 워크플로우 구성 (`.github/workflows/ci.yml`): 멀티 Python 버전(3.10~3.13) 테스트, 벤치마크, 빌드 검증
+- 실무 예제 스크립트 구축 (`examples/demo_adversarial_inspection.py`, `examples/demo_custom_step.py`, `examples/demo_batch_processing.py`)
+- sdist / wheel 빌드 및 `py.typed` 패키징 무결성 검증 완료
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
 - 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — v1은 실시간 단건 처리가 우선
