@@ -53,7 +53,7 @@ def test_minimal_preset_only_runs_unicode_nfc_and_whitespace_trim():
 def test_unimplemented_presets_raise_not_implemented():
     import pytest
 
-    for name in ("security_strict", "llm_input_sanitize", "nlp_preprocessing"):
+    for name in ("security_strict", "llm_input_sanitize"):
         with pytest.raises(NotImplementedError):
             build_preset(name)
 

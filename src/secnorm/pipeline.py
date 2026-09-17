@@ -73,6 +73,8 @@ class NormalizationPipeline:
             from .steps import (
                 EncodingEscapingStep,
                 InvisibleControlStep,
+                LanguageStructuralStep,
+                RepeatedCharStep,
                 UnicodeStep,
                 WhitespaceStep,
             )
@@ -82,6 +84,8 @@ class NormalizationPipeline:
                 InvisibleControlStep(),
                 WhitespaceStep(),
                 EncodingEscapingStep(),
+                RepeatedCharStep(),
+                LanguageStructuralStep(),
             ]
             self._steps = [s for s in available if s.name in self.config.enabled_steps]
 
@@ -90,6 +94,7 @@ class NormalizationPipeline:
         transformations: list[Transformation] = []
         flags: list[SuspicionFlag] = []
         current_text = text
+        current_language: LanguageMetadata | None = None
 
         for step in self._steps:
             if step.name not in self.config.enabled_steps:
@@ -99,12 +104,15 @@ class NormalizationPipeline:
                 text=current_text,
                 config=self.config,
                 span_map=span_map,
+                language=current_language,
             )
             output = step.apply(ctx)
             span_map = span_map.compose(output.edits)
             transformations.extend(output.transformations)
             flags.extend(output.flags)
             current_text = output.text
+            if ctx.language is not None:
+                current_language = ctx.language
 
         return NormalizationResult(
             raw_text=text,
@@ -112,7 +120,7 @@ class NormalizationPipeline:
             normalized_variants={},
             transformations=transformations,
             flags=flags,
-            language=_EMPTY_LANGUAGE_METADATA,
+            language=current_language if current_language is not None else _EMPTY_LANGUAGE_METADATA,
             span_map=span_map,
             config_name=self.name,
             pipeline_version=PIPELINE_VERSION,

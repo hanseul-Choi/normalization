@@ -30,8 +30,11 @@ from .spanmap import Edit, SpanMap
 from .steps import (
     EncodingEscapingStep,
     InvisibleControlStep,
+    LanguageStructuralStep,
+    RepeatedCharStep,
     UnicodeStep,
     WhitespaceStep,
+    compute_script_ratios,
 )
 
 
@@ -76,6 +79,7 @@ __all__ = [
     "InvisibleControlStep",
     "InvisibleControlStepConfig",
     "LanguageMetadata",
+    "LanguageStructuralStep",
     "LanguageStructuralStepConfig",
     "NormalizationConfig",
     "NormalizationPipeline",
@@ -84,6 +88,7 @@ __all__ = [
     "Pipeline",
     "PipelineContext",
     "PipelineStep",
+    "RepeatedCharStep",
     "RepeatedCharStepConfig",
     "Span",
     "SpanMap",
@@ -96,6 +101,7 @@ __all__ = [
     "WhitespaceStep",
     "WhitespaceStepConfig",
     "build_preset",
+    "compute_script_ratios",
     "normalize",
     "normalize_batch",
 ]
