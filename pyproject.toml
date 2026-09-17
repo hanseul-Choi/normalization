@@ -22,6 +22,9 @@ dependencies = [
     "regex",
 ]
 
+[project.scripts]
+secnorm = "secnorm.cli:main"
+
 [project.optional-dependencies]
 full = [
     "ftfy",

@@ -35,13 +35,14 @@
 - 5종 프리셋 완성 (`minimal`, `nlp_preprocessing`, `security_balanced`, `security_strict`, `llm_input_sanitize`)
 - 적대적 테스트 코퍼스 및 유닛/통합 테스트 구축 (총 108개 테스트 통과)
 
-## Phase 4 — 통합/품질
+## Phase 4 — 통합/품질 [완료]
 
-- 프리셋 5종 확정 및 튜닝 (`10-api-design.md`)
-- 커스텀 단계 플러그인 API 안정화
-- Property-based 테스트 + 벤치마크 CI 통합
-- 문서화(docstring, `py.typed`), 예제 노트북/스크립트
-- (선택) 최소 CLI
+- 프리셋 5종 확정 및 튜닝 (`minimal`, `nlp_preprocessing`, `security_balanced`, `security_strict`, `llm_input_sanitize`)
+- 커스텀 단계 플러그인 API 안정화 (`insert_step(..., after=..., before=..., enabled=...)`, `replace_step(...)`, `steps` 프로퍼티)
+- Property-based 테스트 보강 (ASCII 비파괴성, 임의 유니코드 총함수(Total function) 속성, DoS 내성 검증)
+- 벤치마크 테스트 스위트 구축 (`pytest-benchmark`, 30자/200자/2000자 구간별 5개 프리셋 지연시간 측정)
+- CLI 구현 (`secnorm` 콘솔 스크립트 및 `python -m secnorm`, `--preset`, `--json`, `--no-raw` 지원)
+- 문서화 완성 (README 가이드, 사용 예제, `py.typed` 및 docstring 보강)
 
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 

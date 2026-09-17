@@ -1,98 +1,163 @@
 # secnorm
 
-의도적으로 난독화되거나 변형된 텍스트를 **표준화된 정규화 뷰(Normalized View)** 로 수렴시키는 CPU 기반 Python 라이브러리 기획.
+의도적으로 난독화되거나 변형된 텍스트를 **표준화된 정규화 뷰(Normalized View)** 로 수렴시키는 CPU 기반 Python 라이브러리.
 
-## 왜 필요한가
+---
 
-유니코드 텍스트는 "보이는 그대로"가 아닐 수 있다. 전각/반각 문자, 눈에 안 보이는 제어 문자, homoglyph(시각적으로 동일한 다른 스크립트 문자), leetspeak, 반복 문자 도배, HTML/URL 인코딩 등을 이용해 문자열 매칭 기반 필터를 우회하거나, 사람 눈에는 안 보이지만 시스템(특히 LLM)에는 읽히는 내용을 텍스트에 숨길 수 있다.
+## 주요 기능
 
-이 라이브러리는 그런 다양한 변형을 하나의 정규화된 표준 형태로 수렴시켜서, 이후 단계(스팸/콘텐츠 모더레이션 우회 탐지, LLM 프롬프트 정제, 검색/분류 등)가 일관된 기준으로 판단할 수 있게 한다.
+1. **결정적이고 감사 가능한 정규화**:
+   - 동일 입력/설정에 대해 항상 100% 동일한 결과 보장.
+   - 원본 위치 ↔ 정규화 위치를 완벽히 역추적하는 `SpanMap` 제공.
+2. **7단계 보안 지향 파이프라인**:
+   - **Step 1: Unicode Normalization** (NFKC/NFC, 전각/호환 문자 표준화)
+   - **Step 2: Invisible/Control Characters** (Zero-width, Bidi override, Unicode Tag/스머글링, VS, 미할당/PUA 처리)
+   - **Step 3: Whitespace Normalization** (각종 공백 통일, strict/structural 단락 보존 모드)
+   - **Step 4: Encoding/Escaping** (HTML entity, URL percent-encoding, unicode escape, ftfy mojibake 복구)
+   - **Step 5: Repeated Characters** (카테고리별 반복 상한, 한글 자모/구두점/이모지 처리, excessive_repetition 플래그)
+   - **Step 6: Obfuscation Normalization** (UTS #39 Confusables 기반 Homoglyph, 구분자 삽입, Leetspeak, Base64/Hex 페이로드 탐지 및 재귀 정규화)
+   - **Step 7: Language & Structural Metadata** (ko/en/ja/zh 하이브리드 언어 판별, 스크립트 비율, 구조적 힌트)
+3. **5종 표준 프리셋 제공**:
+   - `security_balanced` (기본값): 실서비스 표준. Homoglyph만 canonical 반영, 구분자/Leetspeak은 플래그 및 aggressive variant 제공.
+   - `security_strict`: 스팸/우회 탐지 최우선. 구분자 제거 canonical 반영 및 Base64 페이로드 재귀 정규화 활성화.
+   - `llm_input_sanitize`: LLM 프롬프트 인젝션 방어. Variation Selector 및 Bidi/Tag 스머글링 집중 정제.
+   - `nlp_preprocessing`: 검색/분류 등 일반 NLP용. 1~5단계 on, 6단계 off, structural 공백 모드.
+   - `minimal`: Unicode NFC + 공백 trim 최소 정규화.
+4. **플러그인 아키텍처**:
+   - `pipeline.insert_step(..., after=...)`, `pipeline.replace_step(...)` 등을 통해 자유롭게 커스텀 단계 추가.
+5. **순수 CPU & 경량 의존성**:
+   - GPU/무거운 ML 모델 없음. 표준 라이브러리 우선 및 빠른 실행 속도.
 
-## 주 용도
+---
 
-1. **보안/우회 탐지** (1순위) — 스팸, 콘텐츠 모더레이션 우회, 프롬프트 인젝션/탈옥 시도 등에 쓰인 난독화 기법을 표준화하고 감사 가능한 형태로 기록
-2. **LLM 입력 정제** — Unicode Tag 문자, bidi override, variation selector를 이용한 "ASCII smuggling"류 최신 공격 벡터 포함 대응
-3. 실행 모드는 **실시간 단건 메시지 처리**를 기준으로 설계 (배치는 2차 우선순위)
+## 빠른 시작 (Quick Start)
 
-## 지원 언어/스크립트 (v1)
-
-한국어(Hangul), 영어(Latin), 일본어(Hiragana/Katakana/Kanji), 중국어(Hanzi)
-
-## 파이프라인
-
-```
-Raw Input
-   ↓
-1. Unicode normalization              — NFKC로 전각/호환 문자 등을 표준 형태로 수렴
-   ↓
-2. Invisible/control character handling — zero-width, bidi override, Unicode Tag 문자(프롬프트 스머글링) 등 제거/플래그
-   ↓
-3. Whitespace normalization           — 각종 폭의 공백류 문자를 표준 공백으로
-   ↓
-4. Encoding / escaping normalization  — HTML entity, URL encoding, unicode escape 디코딩 (mojibake 복구는 선택)
-   ↓
-5. Repeated-character normalization   — 카테고리별 상한으로 반복 문자 축약, 원본 반복 횟수는 메타데이터 보존
-   ↓
-6. Obfuscation normalization (optional) — homoglyph 정규화(canonical 반영), leetspeak/구분자삽입/인코딩된 페이로드 탐지(기본은 플래그만)
-   ↓
-7. Language / structural metadata extraction — 언어 판별(스크립트 휴리스틱 우선, ja/zh 애매 케이스만 경량 폴백), 구조 힌트
-   ↓
-Normalized View (NormalizationResult)
-```
-
-## 출력: 리치 감사 객체
-
-단순 문자열이 아니라 `NormalizationResult`를 반환한다:
-
-- `normalized_text` — 정규화된 표준 텍스트 (canonical, 보수적으로 변형)
-- `normalized_variants` — 매칭 목적의 공격적 정규화 후보 (예: leetspeak/구분자 제거 버전)
-- `transformations` — 각 단계에서 적용된 변환 내역 (감사/디버깅용)
-- `flags` — 의심스러운 패턴 탐지 결과 (`homoglyph`, `tag_char_smuggling`, `bidi_override`, `encoded_payload`, `leetspeak`, `separator_injection`, `excessive_repetition`, `mixed_script` 등). 판정/스코어링은 하지 않고 신호만 제공.
-- `language` — 판별된 언어, 스크립트 비율, 구조적 힌트(HTML/마크다운/URL 포함 여부 등)
-- `span_map` — 정규화된 텍스트 위치 ↔ 원본 텍스트 위치 매핑 (원본에서 어디가 왜 바뀌었는지 하이라이트 가능)
-
-자세한 스키마: [`docs/02-architecture.md`](./docs/02-architecture.md)
-
-## 설계 원칙
-
-1. **결정적이고 감사 가능해야 한다** — 같은 입력/설정/규칙 버전이면 항상 같은 출력, 규칙 데이터 버전을 결과에 기록
-2. **보수적 기본값** — 정상 텍스트를 오염시키는 것이 우회 패턴을 놓치는 것보다 나쁘다고 간주. 공격적인 규칙(leetspeak 등)은 canonical text를 건드리지 않고 별도 variant로 제공
-3. **파이프라인 전 단계 on/off + 커스텀 단계 플러그인 지원**
-4. **순수 CPU, 가벼운 의존성** — GPU/무거운 ML 모델 없이 표준 라이브러리 우선, 필요한 곳만 가벼운 서드파티 허용
-5. **실시간 단건 처리 지연시간 우선**
-
-## 예시 (API 초안)
+### 기본 사용법
 
 ```python
 import secnorm
 
-result = secnorm.normalize(text)  # 기본 프리셋: security_balanced
-
-result.normalized_text
-result.flags
-result.language.primary_language
+# 기본 프리셋: security_balanced
+result = secnorm.normalize("  héllo   wörld!  ")
+print(result.normalized_text)  # "hello world!"
+print(result.language.primary_language)  # "en"
 ```
 
-세부 API/프리셋: [`docs/10-api-design.md`](./docs/10-api-design.md)
+### 보안 감사 및 우회 탐지
 
-## 문서
+```python
+import secnorm
 
-| 문서 | 내용 |
-|---|---|
-| [docs/01-overview.md](./docs/01-overview.md) | 문제 정의, 목표/범위, 설계 원칙 |
-| [docs/02-architecture.md](./docs/02-architecture.md) | 데이터 모델, 파이프라인 실행 모델, span mapping, 확장 구조 |
-| [docs/03-step1-unicode-normalization.md](./docs/03-step1-unicode-normalization.md) | 1단계: Unicode 정규화 |
-| [docs/04-step2-invisible-control-chars.md](./docs/04-step2-invisible-control-chars.md) | 2단계: 비가시/제어 문자 처리 |
-| [docs/05-step3-whitespace-normalization.md](./docs/05-step3-whitespace-normalization.md) | 3단계: 공백 정규화 |
-| [docs/06-step4-encoding-escaping.md](./docs/06-step4-encoding-escaping.md) | 4단계: 인코딩/이스케이프 정규화 |
-| [docs/07-step5-repeated-characters.md](./docs/07-step5-repeated-characters.md) | 5단계: 반복 문자 정규화 |
-| [docs/08-step6-obfuscation-normalization.md](./docs/08-step6-obfuscation-normalization.md) | 6단계: 난독화 정규화 (optional) |
-| [docs/09-step7-language-structural-metadata.md](./docs/09-step7-language-structural-metadata.md) | 7단계: 언어/구조 메타데이터 추출 |
-| [docs/10-api-design.md](./docs/10-api-design.md) | 공개 API, 설정, 프리셋 |
-| [docs/11-dependencies.md](./docs/11-dependencies.md) | 의존성 정책과 단계별 선택 라이브러리 |
-| [docs/12-testing-strategy.md](./docs/12-testing-strategy.md) | 테스트/평가 전략 |
-| [docs/13-roadmap.md](./docs/13-roadmap.md) | 구현 단계(phase)와 v1 범위 |
+# 키릴 문자 'а'가 포함된 피싱 도메인
+result = secnorm.normalize("аpple.com", preset="security_balanced")
 
-## 현재 상태
+print(result.normalized_text)  # "apple.com" (라틴 문자로 정규화)
+for flag in result.flags:
+    print(f"[{flag.severity.upper()}] {flag.category}: {flag.detail} (span: {flag.span})")
+# [HIGH] homoglyph: homoglyph_а_to_a (span: Span(start=0, end=1))
+```
 
-`docs/13-roadmap.md` Phase 0(프로젝트 뼈대) 진행 중. 핵심 데이터 모델, 파이프라인 실행 모델, span mapping은 구현됐고 실제 정규화 단계(1~7단계)는 아직 없음.
+### Aggressive Variant 활용
+
+```python
+import secnorm
+
+# 구분자 삽입 및 Leetspeak 스팸
+result = secnorm.normalize("f.r.e.e  m.0.n.e.y", preset="security_balanced")
+
+# Canonical 텍스트는 보수적으로 원형 유지
+print(result.normalized_text)  # "f.r.e.e m.0.n.e.y"
+
+# 필터링/블랙리스트 매칭용 aggressive variant
+print(result.normalized_variants["aggressive"])  # "free money"
+```
+
+### 배치 처리
+
+```python
+results = secnorm.normalize_batch(
+    ["Hello   world", "аpple.com", "coooool!"],
+    preset="security_balanced",
+    n_jobs=2,
+)
+```
+
+---
+
+## 커스텀 단계 플러그인 (Custom Steps)
+
+`PipelineStep` 프로토콜을 구현하여 파이프라인 전/후에 커스텀 단계를 삽입할 수 있습니다:
+
+```python
+from secnorm import PipelineContext, StepOutput, Pipeline
+from secnorm.models import Span, SuspicionFlag
+from secnorm.spanmap import Edit
+
+class ProfanityMaskStep:
+    name = "profanity_mask"
+
+    def apply(self, ctx: PipelineContext) -> StepOutput:
+        text = ctx.text
+        if "badword" not in text:
+            return StepOutput(text=text)
+        
+        start = text.index("badword")
+        new_text = text.replace("badword", "***")
+        return StepOutput(
+            text=new_text,
+            edits=[Edit(src_span=Span(start, start + 7), dst_span=Span(start, start + 3))],
+            flags=[SuspicionFlag(
+                category="profanity",
+                severity="medium",
+                step=self.name,
+                span=ctx.span_map.to_raw(Span(start, start + 7)),
+                detail="badword detected",
+            )]
+        )
+
+pipeline = Pipeline.from_preset("security_balanced")
+pipeline.insert_step(ProfanityMaskStep(), after="obfuscation")
+
+result = pipeline.run("This contains badword!")
+print(result.normalized_text)  # "This contains ***!"
+```
+
+---
+
+## CLI 사용법
+
+```bash
+# 기본 텍스트 정규화
+secnorm "Hello    world!"
+
+# 프리셋 지정
+secnorm "аpple.com" --preset security_strict
+
+# 전체 감사 결과 JSON 출력
+secnorm "аpple.com" --json
+
+# 파이프 입력 (stdin)
+cat input.txt | secnorm --preset llm_input_sanitize > output.txt
+
+# 모듈 형태로 직접 실행
+python -m secnorm "Hello   world"
+```
+
+---
+
+## 결과 직렬화 (Serialization)
+
+```python
+# 감사 로그 저장을 위한 직렬화 (dict 및 JSON 지원)
+data = result.to_dict()
+json_str = result.to_json(indent=2)
+
+# 민감정보(원본 텍스트) 제외 직렬화
+sanitized_json = result.to_json(include_raw_text=False)
+```
+
+---
+
+## 라이선스
+
+MIT License.
