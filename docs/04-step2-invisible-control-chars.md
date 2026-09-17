@@ -45,7 +45,20 @@ class InvisibleControlStepConfig:
 ## 구현
 
 - 표준 라이브러리 `unicodedata.category()`로 카테고리 분류. 코드포인트 범위 상수(Tag 문자, bidi control, VS 등)는 이 라이브러리 내부에 하드코딩된 테이블로 관리 (Unicode 표준 블록이라 자주 안 바뀜, 별도 의존성 불필요).
-- 대량 코드포인트 스캔이 필요하므로 `str.translate()` + 제거 대상 codepoint set을 활용해 O(n)으로 처리 (정규식 문자 클래스보다 빠름).
+- 실제 구현(`src/secnorm/steps/invisible_control_step.py`)은 `str.translate()`가 아니라 문자 단위 순회로 처리한다: 각 문자를 분류해 유지/제거를 결정하면서 동시에 같은 규칙(rule)으로 연속 제거되는 구간을 런(run) 단위로 묶어 `Transformation`/`SuspicionFlag`의 정확한 span을 만들어야 하기 때문 — `str.translate()`만으로는 "어느 구간이 어떤 규칙으로 제거됐는지"를 알 수 없다. 문자 단위 순회도 O(n)이라 처리량 상 문제는 없다.
+
+### 구현 노트: 플래그 카테고리 이름
+
+이 문서의 카테고리 표에는 `zero_width_injection`/`bidi_override`/`tag_char_smuggling`만 명시돼 있고 나머지 행은 이름이 정해져 있지 않았다. 실제 구현에서 사용하는 `SuspicionFlag.category` 값:
+
+| 대상 | category |
+|---|---|
+| `Cc` 제어 문자 | `control_char` |
+| BOM (중간 위치) | `bom_injection` |
+| 비정상 공백류 (Mongolian vowel separator, 한글 필러 등) | `invisible_spacing` |
+| Private Use Area (`private_use_policy="flag"` 또는 `"strip"`) | `private_use_char` |
+| 미할당 코드포인트 (`Cn`) | `unassigned_codepoint` |
+| Variation Selector (일반/서플리먼트 모두, 의심스러운 문맥) | `tag_char_smuggling` (문서 원안대로 통합) |
 
 ## 예시
 

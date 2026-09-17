@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "secnorm"
+version = "0.1.0.dev0"
+description = "Deterministic, audit-friendly text normalization pipeline for security/LLM-input use cases (Unicode, invisible chars, obfuscation, ...)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "hanseulchoi", email = "hschoi5542@gmail.com" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Typing :: Typed",
+]
+dependencies = [
+    "regex",
+]
+
+[project.optional-dependencies]
+full = [
+    "ftfy",
+    "charset-normalizer",
+    "emoji",
+    "unicodedata2",
+    "langdetect",
+]
+dev = [
+    "pytest",
+    "pytest-benchmark",
+    "hypothesis",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+secnorm = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

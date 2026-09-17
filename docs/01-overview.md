@@ -2,8 +2,8 @@
 
 ## 프로젝트
 
-- 잠정 패키지명: **`textnorm`** (확정 아님, `10-api-design.md` 참고)
-- 형태: `pip install` 가능한 순수 CPU 기반 Python 라이브러리 (`import textnorm`)
+- 패키지명: **`secnorm`** (PyPI 미등록 확인 완료, `10-api-design.md` 참고)
+- 형태: `pip install` 가능한 순수 CPU 기반 Python 라이브러리 (`import secnorm`)
 - 언어: Python 3.10+
 
 ## 문제 정의

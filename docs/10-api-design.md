@@ -2,14 +2,14 @@
 
 ## 패키지명
 
-잠정 `textnorm` (미확정 — 확정 전 PyPI 이름 충돌 여부 확인 필요, `13-roadmap.md` Phase 0 항목).
+`secnorm` (PyPI 미등록 확인 완료, `13-roadmap.md` Phase 0 항목).
 
 ## 최상위 함수형 API (가장 흔한 사용 패턴)
 
 ```python
-import textnorm
+import secnorm
 
-result = textnorm.normalize(text)          # 기본 프리셋: "security_balanced"
+result = secnorm.normalize(text)          # 기본 프리셋: "security_balanced"
 result.normalized_text
 result.flags                                # list[SuspicionFlag]
 result.language.primary_language
@@ -17,7 +17,7 @@ result.transformations
 ```
 
 ```python
-result = textnorm.normalize(text, preset="security_strict")
+result = secnorm.normalize(text, preset="security_strict")
 ```
 
 ## 프리셋 (확정 설계)
@@ -33,7 +33,7 @@ result = textnorm.normalize(text, preset="security_strict")
 ## Pipeline 객체 (세밀 제어)
 
 ```python
-pipeline = textnorm.Pipeline.from_preset("security_balanced")
+pipeline = secnorm.Pipeline.from_preset("security_balanced")
 pipeline.disable("obfuscation")
 pipeline.config.repeated_char.default_cap = 3
 
@@ -46,7 +46,7 @@ result = pipeline.run(text)
 class ProfanityMaskStep:
     name = "profanity_mask"
 
-    def apply(self, ctx: textnorm.PipelineContext) -> textnorm.StepOutput:
+    def apply(self, ctx: secnorm.PipelineContext) -> secnorm.StepOutput:
         ...
 
 pipeline.insert_step(ProfanityMaskStep(), after="obfuscation")
@@ -55,7 +55,7 @@ pipeline.insert_step(ProfanityMaskStep(), after="obfuscation")
 ## 배치 처리 (2차 우선순위 — 얇은 래퍼)
 
 ```python
-results = textnorm.normalize_batch(texts, preset="security_balanced", n_jobs=4)
+results = secnorm.normalize_batch(texts, preset="security_balanced", n_jobs=4)
 ```
 
 내부적으로 `concurrent.futures.ProcessPoolExecutor` 또는 `ThreadPoolExecutor` 기반 (CPU 바운드 작업이므로 프로세스 풀이 기본, GIL 영향이 큰 경우). v1에서는 단건 API의 얇은 반복 래퍼로 시작하고, 실제 처리량 요구가 생기면 `13-roadmap.md`의 향후 단계에서 스트리밍/병렬화를 본격 설계.
@@ -63,9 +63,9 @@ results = textnorm.normalize_batch(texts, preset="security_balanced", n_jobs=4)
 ## 설정 직렬화
 
 ```python
-config = textnorm.NormalizationConfig.from_json(json_str)
-config = textnorm.NormalizationConfig.from_file("config.toml")
-pipeline = textnorm.Pipeline(config=config)
+config = secnorm.NormalizationConfig.from_json(json_str)
+config = secnorm.NormalizationConfig.from_file("config.toml")
+pipeline = secnorm.Pipeline(config=config)
 ```
 
 `json` / `tomllib`(3.11+, 3.10은 `tomli` 폴백) 표준 라이브러리 사용.
@@ -81,7 +81,7 @@ result.to_json()
 
 ## CLI (v1 범위 밖, 향후 고려)
 
-`13-roadmap.md` Phase 4 이후 항목으로 `python -m textnorm "text"` 형태의 간단한 CLI만 우선 고려. 본 라이브러리의 핵심 가치는 라이브러리 API이므로 CLI는 부가 기능.
+`13-roadmap.md` Phase 4 이후 항목으로 `python -m secnorm "text"` 형태의 간단한 CLI만 우선 고려. 본 라이브러리의 핵심 가치는 라이브러리 API이므로 CLI는 부가 기능.
 
 ## 타입 힌트 / 정적 검사
 

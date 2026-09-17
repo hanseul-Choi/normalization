@@ -7,15 +7,16 @@
 - `PipelineStep` 프로토콜, `NormalizationPipeline`, `NormalizationConfig` 뼈대
 - Span mapping 합성 알고리즘 구현 + 유닛 테스트
 
-## Phase 1 — "안전한" 결정적 단계 (1~4단계)
+## Phase 1 — "안전한" 결정적 단계 (1~4단계) [완료]
 
 우회 탐지 특화 로직 없이도 그 자체로 유용하고, 구현 리스크가 낮은 단계부터.
 
-- 1단계 Unicode normalization
-- 2단계 비가시/제어 문자 처리 (Tag 문자/bidi/VS 포함 — 우선순위 높음)
-- 3단계 공백 정규화
-- 4단계 인코딩/이스케이프 정규화 (mojibake 복구는 optional로 후순위 가능)
-- 이 시점에 `security_balanced`/`minimal` 프리셋 중 축소 버전으로 첫 릴리스 가능한 수준
+- 1단계 Unicode normalization (NFC/NFD/NFKC/NFKD, unicodedata2 우선 사용 폴백)
+- 2단계 비가시/제어 문자 처리 (Tag 문자/bidi override/VS/zero-width/Hangul filler/PUA/미할당 처리)
+- 3단계 공백 정규화 (strict/structural 모드, 전각 공백 및 탭 정책)
+- 4단계 인코딩/이스케이프 정규화 (HTML entity, URL percent-encoding, unicode escape, ftfy mojibake 복구)
+- `security_balanced`(1~4단계 축소 버전)/`minimal` 프리셋 및 최상위 `secnorm.normalize()`, `secnorm.normalize_batch()`, `Pipeline` API
+- 결과 및 설정 직렬화 (`to_dict`, `to_json`, `from_json`, `from_file`), `py.typed` 마커, `hypothesis` 속성 기반 테스트 포함
 
 ## Phase 2 — 통계/휴리스틱 단계 (5, 7단계)
 
@@ -49,6 +50,5 @@
 
 ## 열린 질문 (구현 중 재확인 필요)
 
-- 패키지명 최종 확정
 - confusables 데이터 갱신 주기 및 자동화 여부 (수동 vs CI 스케줄)
 - `langdetect`의 ja/zh 폴백 정확도가 실제 데이터에서 충분한지 (부족하면 Phase 2에서 대안 재검토)

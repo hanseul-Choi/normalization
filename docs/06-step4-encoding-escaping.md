@@ -48,11 +48,17 @@ class EncodingEscapingStepConfig:
 - Unicode escape: 표준 라이브러리 `codecs.decode(text, "unicode_escape")`는 바이트 왕복 이슈가 있어 한글 등 비ASCII 원문을 깨뜨릴 수 있음 → 직접 정규식으로 `\uXXXX`/`\xXX` 패턴만 안전하게 치환하는 자체 구현 사용 (원문에 이미 있는 비ASCII 문자는 손대지 않음).
 - Mojibake 복구: `ftfy` 라이브러리 사용 권장 (순수 CPU, 이 문제를 위해 만들어진 성숙한 라이브러리). `11-dependencies.md` 참고.
 
+### 구현 노트
+
+- 이 단계는 내부적으로 여러 하위 변환(HTML entity → URL → Unicode escape → mojibake)을 순차 적용한다. 각 하위 변환은 자신의 입력/출력을 diff해서 얻은 edit을 스크래치 `SpanMap`에 누적 합성(compose)하는 방식으로, 최종적으로 이 *단계 전체*의 입력(`ctx.text`)/출력 기준 좌표로 표현된 `Transformation`/`Edit`를 만든다 (`docs/02-architecture.md`의 "이 단계 입력/출력 기준 좌표" 규칙을 단일 단계 내부의 다단계 처리에도 지키기 위함). 두 하위 변환이 정확히 같은 원본 구간을 연달아 바꾸는 극단적인 경우(예: HTML entity로 디코딩된 결과가 우연히 URL percent-encoding처럼 보이는 경우)는 `Transformation`은 각각 남기되 `Edit`는 최종 매핑 하나로 합쳐 반환한다 — 부분적으로 겹치지만 동일하지는 않은 구간까지 정교하게 병합하지는 않는다 (Phase 1 범위 밖으로 유보).
+- `ftfy`는 문서가 언급한 "신뢰도 점수" 같은 단일 지표를 제공하지 않는다. 대신 `ftfy.fix_and_explain()`이 반환하는 적용된 복구 연산 목록을 `Transformation.metadata["ftfy_operations"]`에 그대로 기록한다.
+- `mojibake_repair=True`인데 `ftfy`가 설치돼 있지 않으면(옵션 의존성, `docs/11-dependencies.md`) 예외를 던지지 않고 그 하위 기능만 조용히 건너뛴다 (`docs/02-architecture.md`의 "각 단계는 total function이어야 한다" 원칙).
+
 ## 예시
 
 | 입력 | 출력 | 플래그 |
 |---|---|---|
 | `AT&amp;T` | `AT&T` | 없음 |
 | `https://example.com/%ED%95%9C%EA%B8%80` | `https://example.com/한글` | 없음 (URL 컨텍스트) |
-| `http://evil.example` | `http://evil.example` | `medium` (`encoded_payload`) |
+| `100%20 할인` (URL 문맥 아님) | `100%20 할인` (디코딩 안 함) | `low` (`encoded_payload`) |
 | `café` 원문에 섞인 정상 한글 `안\uub155` | 정책에 따라 디코딩 (`\uub155`→`녕`) + 플래그 | `medium` |
