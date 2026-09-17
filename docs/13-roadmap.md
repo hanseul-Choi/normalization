@@ -71,15 +71,22 @@
 - 권장 조치 판정 (`"allow" | "flag" | "block"`) 및 주요 위험 요소 요약
 - `NormalizationResult.evaluate_risk()`, CLI `--score` 플래그 및 HTTP API 연동 완료
 
+## Phase 9 — CJK 정밀 언어 판별 & 스크립트 감지 확장 [완료]
+
+- 일본 신자체/국자(Kokuji/Shinjitai) 및 중국 간체자(Simplified) 문자 마커 테이블 구축 (`secnorm.data.cjk_markers`)
+- Han(한자) 단독 입력에 대한 1차 순수 규칙 판별(오프라인 고속화, langdetect 오탐 방지) 및 2차 langdetect 폴백 하이브리드 고도화
+- 추가 스크립트 비율 감지(Cyrillic, Greek, Arabic) 지원 확장
+- CJK 정밀 언어 테스트 스위트 구축 완료
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
-- 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — v1은 실시간 단건 처리가 우선
+- 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — (Phase 6에서 완료)
 - ko/en/ja/zh 외 언어 지원 확장
 - ML 기반 스코어링/분류 (이 라이브러리는 신호 추출까지만 담당, 판정은 상위 레이어 책임)
-- 내장 금칙어/블록리스트 사전 (외부 주입 방식 유지)
-- CLI 고도화, 웹 서비스/데몬화
+- 내장 금칙어/블록리스트 사전 (외부 주입 방식 유지) — (Phase 7에서 완료)
+- CLI 고도화, 웹 서비스/데몬화 — (Phase 6, 7에서 완료)
 
-## 열린 질문 (구현 중 재확인 필요)
+## 열린 질문 (해결 완료)
 
-- confusables 데이터 갱신 주기 및 자동화 여부 (수동 vs CI 스케줄)
-- `langdetect`의 ja/zh 폴백 정확도가 실제 데이터에서 충분한지 (부족하면 Phase 2에서 대안 재검토)
+- confusables 데이터 갱신 주기 및 자동화 여부 -> Phase 6에서 `scripts/build_confusables.py` 자동화 도구로 해결 완료
+- `langdetect`의 ja/zh 폴백 정확도 -> Phase 9에서 CJK 전용 문자 마커 휴리스틱 1차 우선 판별로 해결 완료

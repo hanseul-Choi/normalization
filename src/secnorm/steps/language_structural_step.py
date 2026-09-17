@@ -58,6 +58,18 @@ def _classify_script(cp: int) -> str:
     ):
         return "Latin"
 
+    # Cyrillic
+    if (0x0400 <= cp <= 0x04FF) or (0x0500 <= cp <= 0x052F) or (0x2DE0 <= cp <= 0x2DFF):
+        return "Cyrillic"
+
+    # Greek
+    if (0x0370 <= cp <= 0x03FF) or (0x1F00 <= cp <= 0x1FFF):
+        return "Greek"
+
+    # Arabic
+    if (0x0600 <= cp <= 0x06FF) or (0x0750 <= cp <= 0x077F) or (0x08A0 <= cp <= 0x08FF):
+        return "Arabic"
+
     ch = chr(cp)
     cat = unicodedata.category(ch)
     if cat.startswith("Z") or cat.startswith("P") or cat.startswith("N") or cat.startswith("C") or cat.startswith("S"):
@@ -98,8 +110,11 @@ def detect_language(
     counts: dict[str, int],
     cfg: LanguageStructuralStepConfig,
 ) -> tuple[str | None, float]:
-    """Hybrid language detection (rule-based with optional langdetect fallback for ja/zh)."""
-    clean_len = sum(counts.get(s, 0) for s in ("Hangul", "Latin", "Han", "Hiragana", "Katakana"))
+    """Hybrid language detection (rule-based with CJK markers and optional langdetect fallback for ja/zh)."""
+    clean_len = sum(
+        counts.get(s, 0)
+        for s in ("Hangul", "Latin", "Han", "Hiragana", "Katakana", "Cyrillic", "Greek", "Arabic")
+    )
     if clean_len < cfg.min_text_length_for_detection:
         return None, 0.0
 
@@ -108,6 +123,9 @@ def detect_language(
     katakana = counts.get("Katakana", 0)
     han = counts.get("Han", 0)
     latin = counts.get("Latin", 0)
+    cyrillic = counts.get("Cyrillic", 0)
+    greek = counts.get("Greek", 0)
+    arabic = counts.get("Arabic", 0)
 
     # Rule 1: Japanese kana present -> Japanese (Hanzi in Japanese is normal)
     if hiragana > 0 or katakana > 0:
@@ -121,8 +139,35 @@ def detect_language(
     if latin > 0 and latin >= (clean_len * 0.5):
         return "en", 0.90
 
-    # Rule 4: Pure Han characters (ja vs zh ambiguity) -> fallback detector
+    # Rule 3b: Cyrillic / Greek / Arabic dominant
+    if cyrillic > 0 and cyrillic >= (clean_len * 0.5):
+        return "ru", 0.90
+    if greek > 0 and greek >= (clean_len * 0.5):
+        return "el", 0.90
+    if arabic > 0 and arabic >= (clean_len * 0.5):
+        return "ar", 0.90
+
+    # Rule 4: Pure Han characters (ja vs zh ambiguity)
     if han > 0 and hangul == 0 and hiragana == 0 and katakana == 0:
+        # 4a. CJK specific character heuristics (Kokuji/Shinjitai vs Simplified Chinese)
+        from ..data import (
+            JAPANESE_SPECIFIC_HAN,
+            SIMPLIFIED_CHINESE_SPECIFIC_HAN,
+            TRADITIONAL_CHINESE_SPECIFIC_HAN,
+        )
+
+        has_ja_marker = any(ch in JAPANESE_SPECIFIC_HAN for ch in text)
+        has_zh_marker = any(
+            ch in SIMPLIFIED_CHINESE_SPECIFIC_HAN or ch in TRADITIONAL_CHINESE_SPECIFIC_HAN
+            for ch in text
+        )
+
+        if has_ja_marker and not has_zh_marker:
+            return "ja", 0.95
+        if has_zh_marker and not has_ja_marker:
+            return "zh", 0.95
+
+        # 4b. Secondary fallback to langdetect if markers are inconclusive
         if cfg.fallback_detector == "langdetect":
             try:
                 import langdetect
@@ -142,7 +187,6 @@ def detect_language(
                         return lang_code, round(best.prob, 2)
             except Exception:
                 pass
-        # If fallback unavailable or fails, Han without Kana is ambiguous
         return None, 0.0
 
     return None, 0.0
