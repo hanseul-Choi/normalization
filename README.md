@@ -25,7 +25,7 @@ pip install secnorm
    - **Step 4: Encoding/Escaping** (HTML entity, URL percent-encoding, unicode escape, ftfy mojibake 복구)
    - **Step 5: Repeated Characters** (카테고리별 반복 상한, 한글 자모/구두점/이모지 처리, excessive_repetition 플래그)
    - **Step 6: Obfuscation Normalization** (UTS #39 Confusables 기반 Homoglyph, 구분자 삽입, Leetspeak, Base64/Hex 페이로드 탐지 및 재귀 정규화)
-   - **Step 7: Language & Structural Metadata** (ko/en/ja/zh 하이브리드 언어 판별, 스크립트 비율, 구조적 힌트)
+   - **Step 7: Language & Structural Metadata** (ko/en/ja/zh/es/fr/de/ru/ar/he 하이브리드 언어 판별, 스크립트 비율, RTL/LTR 방향성 및 구조적 힌트)
 3. **5종 표준 프리셋 제공**:
    - `security_balanced` (기본값): 실서비스 표준. Homoglyph만 canonical 반영, 구분자/Leetspeak은 플래그 및 aggressive variant 제공.
    - `security_strict`: 스팸/우회 탐지 최우선. 구분자 제거 canonical 반영 및 Base64 페이로드 재귀 정규화 활성화.
