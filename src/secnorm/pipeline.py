@@ -134,6 +134,11 @@ class NormalizationPipeline:
             rule_data_version={"confusables": CONFUSABLES_VERSION},
         )
 
+    @property
+    def steps(self) -> list[PipelineStep]:
+        """Return a copy of the registered pipeline steps."""
+        return list(self._steps)
+
     def _index_of(self, step_name: str) -> int:
         for i, step in enumerate(self._steps):
             if step.name == step_name:
@@ -141,20 +146,64 @@ class NormalizationPipeline:
         raise ValueError(f"no such step: {step_name!r}")
 
     def enable(self, step_name: str) -> None:
+        """Enable a step by name."""
         self.config.enabled_steps.add(step_name)
 
     def disable(self, step_name: str) -> None:
+        """Disable a step by name."""
         self.config.enabled_steps.discard(step_name)
 
-    def insert_step(self, step: PipelineStep, *, after: str | None = None, before: str | None = None) -> None:
+    def insert_step(
+        self,
+        step: PipelineStep,
+        *,
+        after: str | None = None,
+        before: str | None = None,
+        enabled: bool = True,
+    ) -> None:
+        """Insert a step before or after an existing anchor step.
+
+        Parameters
+        ----------
+        step : PipelineStep
+            The custom step instance to insert.
+        after : str | None
+            Name of the step after which `step` will be inserted.
+        before : str | None
+            Name of the step before which `step` will be inserted.
+        enabled : bool
+            Whether to add `step.name` to `config.enabled_steps` (default True).
+        """
         if (after is None) == (before is None):
             raise ValueError("insert_step requires exactly one of `after` or `before`")
         anchor = after if after is not None else before
         index = self._index_of(anchor)
         self._steps.insert(index + 1 if after is not None else index, step)
+        if enabled:
+            self.config.enabled_steps.add(step.name)
 
-    def replace_step(self, step_name: str, step: PipelineStep) -> None:
-        self._steps[self._index_of(step_name)] = step
+    def replace_step(
+        self,
+        step_name: str,
+        step: PipelineStep,
+        *,
+        enabled: bool = True,
+    ) -> None:
+        """Replace an existing step with a new step instance.
+
+        Parameters
+        ----------
+        step_name : str
+            Name of the existing step to replace.
+        step : PipelineStep
+            The replacement step instance.
+        enabled : bool
+            Whether to add `step.name` to `config.enabled_steps` (default True).
+        """
+        idx = self._index_of(step_name)
+        self._steps[idx] = step
+        if enabled:
+            self.config.enabled_steps.add(step.name)
 
     @classmethod
     def from_preset(cls, name: str) -> "NormalizationPipeline":
