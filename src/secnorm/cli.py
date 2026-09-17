@@ -65,6 +65,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exclude raw_text from JSON output for sensitive data logging.",
     )
     parser.add_argument(
+        "--serve",
+        action="store_true",
+        help="Start lightweight HTTP REST API daemon.",
+    )
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host interface for HTTP daemon (default: 127.0.0.1).",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for HTTP daemon (default: 8000).",
+    )
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -76,6 +92,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    # Check for serve command or --serve flag
+    if args.serve or args.text == "serve":
+        from .server import run_server
+
+        run_server(host=args.host, port=args.port)
+        return 0
 
     # File-to-file batch streaming mode
     if args.input is not None and args.output is not None:
