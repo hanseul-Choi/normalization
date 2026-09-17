@@ -80,7 +80,7 @@ class RiskScorer:
                 total_flags=0,
             )
 
-        flags_count: dict[str, int] = {"high": 0, "medium": 0, "low": 0}
+        flags_count: dict[str, int] = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         categories_seen: set[str] = set()
         raw_score = 0.0
 
@@ -99,11 +99,12 @@ class RiskScorer:
 
         final_score = min(1.0, max(0.0, round(raw_score, 3)))
 
-        # Prioritize primary risks: high severity categories first, then by frequency
+        # Prioritize primary risks: critical first, then high, then other
+        critical_cats = [f.category for f in flags if f.severity == "critical"]
         high_cats = [f.category for f in flags if f.severity == "high"]
-        other_cats = [f.category for f in flags if f.severity != "high"]
+        other_cats = [f.category for f in flags if f.severity not in ("critical", "high")]
         ordered_unique_cats: list[str] = []
-        for cat in high_cats + other_cats:
+        for cat in critical_cats + high_cats + other_cats:
             if cat not in ordered_unique_cats:
                 ordered_unique_cats.append(cat)
 

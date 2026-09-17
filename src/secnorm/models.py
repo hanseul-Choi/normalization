@@ -142,7 +142,9 @@ class NormalizationResult:
             data["raw_text"] = None
 
         if include_risk:
-            data["risk_report"] = self.evaluate_risk().to_dict()
+            report_dict = self.evaluate_risk().to_dict()
+            data["risk_report"] = report_dict
+            data["risk"] = report_dict
 
         return data
 
