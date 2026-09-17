@@ -1,20 +1,24 @@
 """Preset pipeline construction (docs/10-api-design.md, docs/13-roadmap.md Phase 1).
 
-Only `minimal` (unicode NFC + whitespace trim, per docs/10-api-design.md's
-preset table) is fully buildable in Phase 1: the other four presets need
-steps 5-7, which don't exist yet. `NormalizationPipeline.from_preset` raises
-`NotImplementedError` for those until the corresponding phases land.
+In Phase 1, `minimal` (unicode NFC + whitespace trim) and `security_balanced`
+(reduced 4-step version: unicode NFKC + invisible_control + whitespace strict +
+encoding_escaping) are fully supported. The other presets need steps 5-7
+and raise NotImplementedError until the corresponding phases land.
 """
 
 from __future__ import annotations
 
 from .config import NormalizationConfig
 from .pipeline import NormalizationPipeline, PipelineStep
-from .steps import UnicodeStep, WhitespaceStep
+from .steps import (
+    EncodingEscapingStep,
+    InvisibleControlStep,
+    UnicodeStep,
+    WhitespaceStep,
+)
 
 _UNIMPLEMENTED_PRESETS = (
     "security_strict",
-    "security_balanced",
     "llm_input_sanitize",
     "nlp_preprocessing",
 )
@@ -26,6 +30,18 @@ def build_preset(name: str) -> NormalizationPipeline:
         config.unicode.form = "NFC"
         config.whitespace.trim_edges = True
         steps: list[PipelineStep] = [UnicodeStep(), WhitespaceStep()]
+        return NormalizationPipeline(steps, config, name=name)
+
+    if name == "security_balanced":
+        config = NormalizationConfig(
+            enabled_steps={"unicode", "invisible_control", "whitespace", "encoding_escaping"}
+        )
+        steps = [
+            UnicodeStep(),
+            InvisibleControlStep(),
+            WhitespaceStep(),
+            EncodingEscapingStep(),
+        ]
         return NormalizationPipeline(steps, config, name=name)
 
     if name in _UNIMPLEMENTED_PRESETS:

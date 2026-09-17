@@ -166,3 +166,15 @@ class SpanMap:
             new_segments.append(_Segment(span, span, True))
 
         return SpanMap(new_segments)
+
+    def to_dict(self) -> dict[str, list[dict[str, object]]]:
+        return {
+            "segments": [
+                {
+                    "cur_span": {"start": s.cur_span.start, "end": s.cur_span.end},
+                    "raw_span": {"start": s.raw_span.start, "end": s.raw_span.end},
+                    "exact": s.exact,
+                }
+                for s in self._segments
+            ]
+        }

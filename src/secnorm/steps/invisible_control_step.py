@@ -14,7 +14,10 @@ the doc's "구현 노트" section.
 
 from __future__ import annotations
 
-import unicodedata
+try:
+    import unicodedata2 as unicodedata
+except ImportError:
+    import unicodedata  # type: ignore[no-redef]
 from dataclasses import dataclass
 
 from ..config import InvisibleControlStepConfig

@@ -59,10 +59,31 @@ class PipelineStep(Protocol):
 
 
 class NormalizationPipeline:
-    def __init__(self, steps: list[PipelineStep], config: NormalizationConfig, name: str = "custom") -> None:
-        self._steps = list(steps)
-        self.config = config
+    def __init__(
+        self,
+        steps: list[PipelineStep] | None = None,
+        config: NormalizationConfig | None = None,
+        name: str = "custom",
+    ) -> None:
+        self.config = config if config is not None else NormalizationConfig()
         self.name = name
+        if steps is not None:
+            self._steps = list(steps)
+        else:
+            from .steps import (
+                EncodingEscapingStep,
+                InvisibleControlStep,
+                UnicodeStep,
+                WhitespaceStep,
+            )
+
+            available = [
+                UnicodeStep(),
+                InvisibleControlStep(),
+                WhitespaceStep(),
+                EncodingEscapingStep(),
+            ]
+            self._steps = [s for s in available if s.name in self.config.enabled_steps]
 
     def run(self, text: str) -> NormalizationResult:
         span_map = SpanMap.identity(len(text))
@@ -125,3 +146,6 @@ class NormalizationPipeline:
         from .presets import build_preset
 
         return build_preset(name)
+
+
+Pipeline = NormalizationPipeline

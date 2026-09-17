@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-import unicodedata
+try:
+    import unicodedata2 as unicodedata
+except ImportError:
+    import unicodedata  # type: ignore[no-redef]
 
 from ..diffutil import diff_edits
 from ..models import Transformation

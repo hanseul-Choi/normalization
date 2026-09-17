@@ -39,5 +39,8 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+secnorm = ["py.typed"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

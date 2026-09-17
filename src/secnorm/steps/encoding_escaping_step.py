@@ -31,7 +31,10 @@ from __future__ import annotations
 
 import html
 import re
-import unicodedata
+try:
+    import unicodedata2 as unicodedata
+except ImportError:
+    import unicodedata  # type: ignore[no-redef]
 from urllib.parse import unquote
 
 from ..diffutil import diff_edits

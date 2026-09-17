@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal
+import json
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+from typing import Any, Literal
 
 ALL_STEP_NAMES = (
     "unicode",
@@ -91,3 +93,79 @@ class NormalizationConfig:
     repeated_char: RepeatedCharStepConfig = field(default_factory=RepeatedCharStepConfig)
     obfuscation: ObfuscationStepConfig = field(default_factory=ObfuscationStepConfig)
     language_structural: LanguageStructuralStepConfig = field(default_factory=LanguageStructuralStepConfig)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["enabled_steps"] = sorted(self.enabled_steps)
+        data["invisible_control"]["preserve_whitelist"] = sorted(self.invisible_control.preserve_whitelist)
+        if self.obfuscation.dictionary is not None:
+            data["obfuscation"]["dictionary"] = sorted(self.obfuscation.dictionary)
+        return data
+
+    def to_json(self, *, indent: int | None = None) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "NormalizationConfig":
+        cfg = cls()
+        if "enabled_steps" in data:
+            cfg.enabled_steps = set(data["enabled_steps"])
+        if "unicode" in data:
+            cfg.unicode = UnicodeStepConfig(**data["unicode"])
+        if "invisible_control" in data:
+            ic = dict(data["invisible_control"])
+            if "preserve_whitelist" in ic:
+                ic["preserve_whitelist"] = set(ic["preserve_whitelist"])
+            cfg.invisible_control = InvisibleControlStepConfig(**ic)
+        if "whitespace" in data:
+            cfg.whitespace = WhitespaceStepConfig(**data["whitespace"])
+        if "encoding_escaping" in data:
+            cfg.encoding_escaping = EncodingEscapingStepConfig(**data["encoding_escaping"])
+        if "repeated_char" in data:
+            cfg.repeated_char = RepeatedCharStepConfig(**data["repeated_char"])
+        if "obfuscation" in data:
+            ob = dict(data["obfuscation"])
+            if ob.get("dictionary") is not None:
+                ob["dictionary"] = frozenset(ob["dictionary"])
+            cfg.obfuscation = ObfuscationStepConfig(**ob)
+        if "language_structural" in data:
+            cfg.language_structural = LanguageStructuralStepConfig(**data["language_structural"])
+        return cfg
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "NormalizationConfig":
+        return cls.from_dict(json.loads(json_str))
+
+    @classmethod
+    def from_file(cls, path: str | Path) -> "NormalizationConfig":
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"config file not found: {path}")
+        suffix = p.suffix.lower()
+        if suffix == ".json":
+            return cls.from_json(p.read_text(encoding="utf-8"))
+        if suffix in (".toml", ".tml"):
+            try:
+                import tomllib
+            except ImportError:
+                try:
+                    import tomli as tomllib  # type: ignore[no-redef]
+                except ImportError:
+                    raise ImportError("tomllib (Python 3.11+) or tomli is required to parse TOML configuration files")
+            with open(p, "rb") as f:
+                data = tomllib.load(f)
+            return cls.from_dict(data)
+        content = p.read_text(encoding="utf-8")
+        try:
+            return cls.from_json(content)
+        except json.JSONDecodeError:
+            try:
+                import tomllib
+            except ImportError:
+                try:
+                    import tomli as tomllib  # type: ignore[no-redef]
+                except ImportError:
+                    raise ImportError("tomllib (Python 3.11+) or tomli is required to parse TOML configuration files")
+            with open(p, "rb") as f:
+                data = tomllib.load(f)
+            return cls.from_dict(data)
