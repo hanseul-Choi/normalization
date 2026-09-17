@@ -52,9 +52,3 @@ def test_phase2_idempotency():
         once = secnorm.normalize(text).normalized_text
         twice = secnorm.normalize(once).normalized_text
         assert once == twice
-
-
-def test_unimplemented_presets_in_phase2():
-    for name in ("security_strict", "llm_input_sanitize"):
-        with pytest.raises(NotImplementedError):
-            secnorm.build_preset(name)
