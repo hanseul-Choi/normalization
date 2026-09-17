@@ -94,6 +94,14 @@
 - `LanguageStructuralStepConfig`에 다국어 설정 옵션 추가 (`detect_latin_dialects`, `supported_languages`)
 - 다국어 및 RTL 텍스트 정규화 테스트 스위트 구축 완료 (총 177개 테스트 통과)
 
+## Phase 12 — LLM 프롬프트 인젝션 가드레일 & 멀티프로세스 배치 가속 [완료]
+
+- 프롬프트 인젝션 & 탈옥 탐지 플러그인 (`secnorm.plugins.PromptInjectionGuardrailStep`)
+- 4종 핵심 위협 패턴 내장 (시스템 오버라이드, DAN 모드 탈옥, 프롬프트 유출, 템플릿 토큰 스머글링)
+- `Severity.critical` 및 위험도 스코어링(`RiskScorer`) 1.0 차단(block) 연동
+- 멀티프로세싱 기반 고속 병렬 배치 처리 (`secnorm.normalize_batch(..., backend="process")`)
+- CLI 병렬 작업 및 백엔드 플래그 (`-j/--jobs`, `--backend`) 지원 완료 (총 187개 테스트 통과)
+
 ## 향후 후보 (Backlog)
 
 - ko/en/ja/zh/es/fr/de/ru/ar/he 외 소수 언어 지원

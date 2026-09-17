@@ -71,6 +71,8 @@ class NormalizationPipeline:
         self.name = name
         if steps is not None:
             self._steps = list(steps)
+            for s in self._steps:
+                self.config.enabled_steps.add(s.name)
         else:
             from .steps import (
                 EncodingEscapingStep,

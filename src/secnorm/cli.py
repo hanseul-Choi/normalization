@@ -87,6 +87,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Port for HTTP daemon (default: 8000).",
     )
     parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=1,
+        help="Number of concurrent worker threads/processes for batch operations (default: 1).",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["thread", "process"],
+        default="thread",
+        help="Parallel execution backend: thread or process (default: thread).",
+    )
+    parser.add_argument(
         "-v",
         "--version",
         action="version",
@@ -106,8 +119,26 @@ def main(argv: list[str] | None = None) -> int:
         run_server(host=args.host, port=args.port)
         return 0
 
-    # File-to-file batch streaming mode
+    # File-to-file batch streaming / parallel mode
     if args.input is not None and args.output is not None:
+        if args.jobs > 1:
+            with args.input.open("r", encoding="utf-8") as f:
+                lines = [line.rstrip("\r\n") for line in f]
+            results = secnorm.normalize_batch(
+                lines,
+                preset=args.preset,
+                n_jobs=args.jobs,
+                backend=args.backend,
+            )
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open("w", encoding="utf-8") as out:
+                for res in results:
+                    if args.format == "jsonl":
+                        out.write(res.to_json(include_raw_text=not args.no_raw) + "\n")
+                    else:
+                        out.write(res.normalized_text + "\n")
+            return 0
+
         secnorm.normalize_file(
             input_path=args.input,
             output_path=args.output,

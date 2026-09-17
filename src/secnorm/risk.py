@@ -12,12 +12,14 @@ RiskLevel = Literal["safe", "low", "medium", "high", "critical"]
 ActionRecommendation = Literal["allow", "flag", "block"]
 
 _DEFAULT_SEVERITY_WEIGHTS: dict[str, float] = {
+    "critical": 0.8,
     "high": 0.5,
     "medium": 0.25,
     "low": 0.1,
 }
 
 _DEFAULT_CATEGORY_MULTIPLIERS: dict[str, float] = {
+    "prompt_injection": 1.5,
     "bidi_override": 1.3,
     "tag_char_smuggling": 1.3,
     "encoded_payload": 1.2,

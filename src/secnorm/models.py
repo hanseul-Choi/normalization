@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from .spanmap import SpanMap
 
-Severity = Literal["low", "medium", "high"]
+Severity = Literal["low", "medium", "high", "critical"]
 
 
 @dataclass(slots=True, frozen=True)

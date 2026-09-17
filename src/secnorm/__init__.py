@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Literal
 
 from .config import (
     EncodingEscapingStepConfig,
@@ -55,20 +56,39 @@ def normalize(
     return pipeline.run(text)
 
 
+def _batch_worker(item: tuple[str, str, NormalizationConfig | None]) -> NormalizationResult:
+    text, preset, cfg = item
+    pipeline = build_preset(preset)
+    if cfg is not None:
+        pipeline.config = cfg
+    return pipeline.run(text)
+
+
 def normalize_batch(
     texts: Sequence[str],
     preset: str = "security_balanced",
     *,
     config: NormalizationConfig | None = None,
     n_jobs: int = 1,
+    backend: Literal["thread", "process"] = "thread",
 ) -> list[NormalizationResult]:
-    """Normalize multiple texts using a preset pipeline."""
+    """Normalize multiple texts using a preset pipeline with thread or process parallelism."""
+    if backend not in ("thread", "process"):
+        raise ValueError(f"invalid backend: {backend!r}, expected 'thread' or 'process'")
+
     pipeline = build_preset(preset)
     if config is not None:
         pipeline.config = config
 
     if n_jobs <= 1 or len(texts) <= 1:
         return [pipeline.run(t) for t in texts]
+
+    if backend == "process":
+        from concurrent.futures import ProcessPoolExecutor
+
+        tasks = [(t, preset, config) for t in texts]
+        with ProcessPoolExecutor(max_workers=n_jobs) as executor:
+            return list(executor.map(_batch_worker, tasks))
 
     from concurrent.futures import ThreadPoolExecutor
 
