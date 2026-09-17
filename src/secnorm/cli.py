@@ -65,6 +65,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exclude raw_text from JSON output for sensitive data logging.",
     )
     parser.add_argument(
+        "-s",
+        "--score",
+        action="store_true",
+        help="Evaluate and include consolidated risk scoring report.",
+    )
+    parser.add_argument(
         "--serve",
         action="store_true",
         help="Start lightweight HTTP REST API daemon.",
@@ -136,19 +142,48 @@ def main(argv: list[str] | None = None) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with args.output.open("w", encoding="utf-8") as out:
             if args.json:
-                out.write(result.to_json(indent=2, include_raw_text=not args.no_raw) + "\n")
+                out.write(
+                    result.to_json(
+                        indent=2,
+                        include_raw_text=not args.no_raw,
+                        include_risk=args.score,
+                    )
+                    + "\n"
+                )
             elif args.format == "jsonl":
-                out.write(result.to_json(include_raw_text=not args.no_raw) + "\n")
+                out.write(
+                    result.to_json(
+                        include_raw_text=not args.no_raw,
+                        include_risk=args.score,
+                    )
+                    + "\n"
+                )
             else:
                 out.write(result.normalized_text + "\n")
         return 0
 
     if args.json:
-        print(result.to_json(indent=2, include_raw_text=not args.no_raw))
+        print(
+            result.to_json(
+                indent=2,
+                include_raw_text=not args.no_raw,
+                include_risk=args.score,
+            )
+        )
     elif args.format == "jsonl":
-        print(result.to_json(include_raw_text=not args.no_raw))
+        print(
+            result.to_json(
+                include_raw_text=not args.no_raw,
+                include_risk=args.score,
+            )
+        )
     else:
         print(result.normalized_text)
+        if args.score:
+            report = result.evaluate_risk()
+            print(
+                f"[Risk: score={report.score:.2f}, level={report.level}, action={report.recommended_action}, flags={report.total_flags}]"
+            )
 
     return 0
 

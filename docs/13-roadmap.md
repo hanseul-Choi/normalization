@@ -64,6 +64,13 @@
 - 표준 라이브러리 기반 경량 HTTP REST API 서버 데몬 (`secnorm.server` / `secnorm serve`)
 - 마이크로서비스 연동 테스트 및 CLI 서브커맨드 구현 완료
 
+## Phase 8 — 위험도 스코어링 & 신호 집계 엔진 [완료]
+
+- 규칙 기반 위험도 스코어링 엔진 (`secnorm.risk.RiskScorer`, `RiskReport`, `RiskLevel`)
+- 심각도 가중치 및 복합 공격 시너지 가산점 기반 0.0~1.0 위험 점수 계산
+- 권장 조치 판정 (`"allow" | "flag" | "block"`) 및 주요 위험 요소 요약
+- `NormalizationResult.evaluate_risk()`, CLI `--score` 플래그 및 HTTP API 연동 완료
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
 - 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — v1은 실시간 단건 처리가 우선

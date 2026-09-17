@@ -57,6 +57,21 @@ for flag in result.flags:
 # [HIGH] homoglyph: homoglyph_а_to_a (span: Span(start=0, end=1))
 ```
 
+### 위험도 스코어링 (Risk Scoring & Signal Aggregation)
+
+```python
+import secnorm
+
+result = secnorm.normalize("\u202e\u200bаpple.com\u202c", preset="security_strict")
+
+# 단일 종합 위험 보고서 산출 (0.0 ~ 1.0)
+report = result.evaluate_risk()
+print(f"Risk Score: {report.score}")            # 0.90
+print(f"Risk Level: {report.level}")            # "critical"
+print(f"Action: {report.recommended_action}")   # "block" ("allow" | "flag" | "block")
+print(f"Primary Risks: {report.primary_risks}") # ['bidi_override', 'homoglyph', ...]
+```
+
 ### Aggressive Variant 활용
 
 ```python

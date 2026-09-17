@@ -53,6 +53,27 @@ def test_http_normalize_endpoint(http_server: str):
         assert any(f["category"] == "homoglyph" for f in data["flags"])
 
 
+def test_http_normalize_with_include_risk(http_server: str):
+    url = f"{http_server}/normalize"
+    payload = json.dumps({
+        "text": "Check аpple.com",
+        "include_risk": True,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        assert "risk_report" in data
+        assert data["risk_report"]["score"] > 0.0
+        assert data["risk_report"]["recommended_action"] in ("allow", "flag", "block")
+
+
 def test_http_normalize_batch_endpoint(http_server: str):
     url = f"{http_server}/normalize/batch"
     payload = json.dumps({

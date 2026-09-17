@@ -73,6 +73,7 @@ def normalize_batch(
         return list(executor.map(pipeline.run, texts))
 
 
+from .risk import RiskReport, RiskScorer, evaluate_risk
 from .streaming import normalize_file, normalize_stream
 
 __all__ = [
@@ -94,6 +95,8 @@ __all__ = [
     "PipelineStep",
     "RepeatedCharStep",
     "RepeatedCharStepConfig",
+    "RiskReport",
+    "RiskScorer",
     "Span",
     "SpanMap",
     "StepOutput",
@@ -106,6 +109,7 @@ __all__ = [
     "WhitespaceStepConfig",
     "build_preset",
     "compute_script_ratios",
+    "evaluate_risk",
     "normalize",
     "normalize_batch",
     "normalize_file",

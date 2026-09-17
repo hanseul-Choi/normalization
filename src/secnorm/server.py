@@ -60,10 +60,17 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
 
             preset = payload.get("preset", "security_balanced")
             include_raw_text = payload.get("include_raw_text", True)
+            include_risk = payload.get("include_risk", False)
 
             try:
                 result = secnorm.normalize(text, preset=preset)
-                self._send_json(200, result.to_dict(include_raw_text=include_raw_text))
+                self._send_json(
+                    200,
+                    result.to_dict(
+                        include_raw_text=include_raw_text,
+                        include_risk=include_risk,
+                    ),
+                )
             except ValueError as e:
                 self._send_error(400, str(e))
 
@@ -75,11 +82,18 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
 
             preset = payload.get("preset", "security_balanced")
             include_raw_text = payload.get("include_raw_text", True)
+            include_risk = payload.get("include_risk", False)
             n_jobs = payload.get("n_jobs", 1)
 
             try:
                 results = secnorm.normalize_batch(texts, preset=preset, n_jobs=n_jobs)
-                data = [r.to_dict(include_raw_text=include_raw_text) for r in results]
+                data = [
+                    r.to_dict(
+                        include_raw_text=include_raw_text,
+                        include_risk=include_risk,
+                    )
+                    for r in results
+                ]
                 self._send_json(200, data)
             except ValueError as e:
                 self._send_error(400, str(e))
