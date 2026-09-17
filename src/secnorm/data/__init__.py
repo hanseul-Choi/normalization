@@ -1,0 +1,3 @@
+from .confusables import CONFUSABLE_MAP, CONFUSABLES_VERSION
+
+__all__ = ["CONFUSABLE_MAP", "CONFUSABLES_VERSION"]

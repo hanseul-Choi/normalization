@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from .config import NormalizationConfig
+from .data import CONFUSABLES_VERSION
 from .models import (
     LanguageMetadata,
     NormalizationResult,
@@ -50,6 +51,7 @@ class StepOutput:
     transformations: list[Transformation] = field(default_factory=list)
     flags: list[SuspicionFlag] = field(default_factory=list)
     edits: list[Edit] = field(default_factory=list)
+    variants: dict[str, str] = field(default_factory=dict)
 
 
 class PipelineStep(Protocol):
@@ -74,6 +76,7 @@ class NormalizationPipeline:
                 EncodingEscapingStep,
                 InvisibleControlStep,
                 LanguageStructuralStep,
+                ObfuscationStep,
                 RepeatedCharStep,
                 UnicodeStep,
                 WhitespaceStep,
@@ -85,6 +88,7 @@ class NormalizationPipeline:
                 WhitespaceStep(),
                 EncodingEscapingStep(),
                 RepeatedCharStep(),
+                ObfuscationStep(),
                 LanguageStructuralStep(),
             ]
             self._steps = [s for s in available if s.name in self.config.enabled_steps]
@@ -95,6 +99,7 @@ class NormalizationPipeline:
         flags: list[SuspicionFlag] = []
         current_text = text
         current_language: LanguageMetadata | None = None
+        current_variants: dict[str, str] = {}
 
         for step in self._steps:
             if step.name not in self.config.enabled_steps:
@@ -110,6 +115,8 @@ class NormalizationPipeline:
             span_map = span_map.compose(output.edits)
             transformations.extend(output.transformations)
             flags.extend(output.flags)
+            if output.variants:
+                current_variants.update(output.variants)
             current_text = output.text
             if ctx.language is not None:
                 current_language = ctx.language
@@ -117,14 +124,14 @@ class NormalizationPipeline:
         return NormalizationResult(
             raw_text=text,
             normalized_text=current_text,
-            normalized_variants={},
+            normalized_variants=current_variants,
             transformations=transformations,
             flags=flags,
             language=current_language if current_language is not None else _EMPTY_LANGUAGE_METADATA,
             span_map=span_map,
             config_name=self.name,
             pipeline_version=PIPELINE_VERSION,
-            rule_data_version={},
+            rule_data_version={"confusables": CONFUSABLES_VERSION},
         )
 
     def _index_of(self, step_name: str) -> int:

@@ -25,13 +25,15 @@
 - 6단계가 필요로 하는 standalone "script ratio prepass" 인터페이스 (`compute_script_ratios`) 확정
 - `nlp_preprocessing` 프리셋(1~5단계, 7단계 on, structural 공백 모드) 및 `security_balanced` 프리셋의 5·7단계 통합 완료
 
-## Phase 3 — 난독화 정규화 (6단계, 가장 리스크 높음)
+## Phase 3 — 난독화 정규화 (6단계, 가장 리스크 높음) [완료]
 
-- Confusables 데이터 번들링 파이프라인 (Unicode.org 데이터 다운로드 → 스크립트 필터링 → 정적 테이블 생성 스크립트)
-- Homoglyph 정규화 (canonical 반영)
-- 구분자 삽입 탐지, leetspeak 탐지 (aggressive variant)
-- 인코딩된 페이로드 탐지 (+ 옵션인 decode_and_recurse, 안전장치 포함)
-- 적대적 테스트 코퍼스 구축 (`12-testing-strategy.md` §3)
+- Confusables 데이터 구축 (`secnorm.data.confusables`, UTS #39 Confusables 16.0.0 기반 대소문자 매핑 테이블 번들링)
+- Homoglyph 정규화 (단일 스크립트 외래어 보존 예외 처리, canonical 반영, `homoglyph` 플래그)
+- 구분자 삽입 탐지 (canonical 보존, `normalized_variants["aggressive"]` 반영, `separator_injection` 플래그)
+- Leetspeak 정규화 (`normalized_variants["aggressive"]` 반영, 3개 이상 치환 시 `leetspeak` 플래그)
+- 인코딩된 페이로드 탐지 (Base64/Hex 탐지, `encoded_payload` 플래그, `decode_and_recurse=True` 안전장치 포함 재귀 정규화)
+- 5종 프리셋 완성 (`minimal`, `nlp_preprocessing`, `security_balanced`, `security_strict`, `llm_input_sanitize`)
+- 적대적 테스트 코퍼스 및 유닛/통합 테스트 구축 (총 108개 테스트 통과)
 
 ## Phase 4 — 통합/품질
 

@@ -50,14 +50,6 @@ def test_minimal_preset_only_runs_unicode_nfc_and_whitespace_trim():
     assert result.normalized_text == "Ａｄｍｉｎ"
 
 
-def test_unimplemented_presets_raise_not_implemented():
-    import pytest
-
-    for name in ("security_strict", "llm_input_sanitize"):
-        with pytest.raises(NotImplementedError):
-            build_preset(name)
-
-
 def test_security_balanced_preset_reduced_runs_all_four_steps():
     import secnorm
 
