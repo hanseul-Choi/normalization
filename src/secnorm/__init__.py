@@ -18,9 +18,12 @@ from .models import (
 )
 from .pipeline import NormalizationPipeline, PipelineContext, PipelineStep, StepOutput
 from .spanmap import Edit, SpanMap
+from .steps import EncodingEscapingStep, InvisibleControlStep, UnicodeStep, WhitespaceStep
 
 __all__ = [
+    "EncodingEscapingStep",
     "EncodingEscapingStepConfig",
+    "InvisibleControlStep",
     "InvisibleControlStepConfig",
     "LanguageMetadata",
     "LanguageStructuralStepConfig",
@@ -38,6 +41,8 @@ __all__ = [
     "StructuralHints",
     "SuspicionFlag",
     "Transformation",
+    "UnicodeStep",
     "UnicodeStepConfig",
+    "WhitespaceStep",
     "WhitespaceStepConfig",
 ]

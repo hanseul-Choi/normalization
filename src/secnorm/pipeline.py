@@ -122,6 +122,6 @@ class NormalizationPipeline:
 
     @classmethod
     def from_preset(cls, name: str) -> "NormalizationPipeline":
-        # Presets bundle the concrete step implementations from Phase 1-3
-        # (docs/13-roadmap.md); none exist yet in this Phase 0 skeleton.
-        raise NotImplementedError(f"preset {name!r} is not available until the step implementations land")
+        from .presets import build_preset
+
+        return build_preset(name)
