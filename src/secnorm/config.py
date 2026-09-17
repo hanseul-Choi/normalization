@@ -81,6 +81,8 @@ class LanguageStructuralStepConfig:
     mixed_script_threshold: float = 0.15
     fallback_detector: Literal["langdetect", "none"] = "langdetect"
     min_text_length_for_detection: int = 2
+    detect_latin_dialects: bool = True
+    supported_languages: tuple[str, ...] | None = None
 
 
 @dataclass
@@ -129,7 +131,10 @@ class NormalizationConfig:
                 ob["dictionary"] = frozenset(ob["dictionary"])
             cfg.obfuscation = ObfuscationStepConfig(**ob)
         if "language_structural" in data:
-            cfg.language_structural = LanguageStructuralStepConfig(**data["language_structural"])
+            ls = dict(data["language_structural"])
+            if ls.get("supported_languages") is not None:
+                ls["supported_languages"] = tuple(ls["supported_languages"])
+            cfg.language_structural = LanguageStructuralStepConfig(**ls)
         return cfg
 
     @classmethod

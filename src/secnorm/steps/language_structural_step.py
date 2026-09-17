@@ -67,8 +67,18 @@ def _classify_script(cp: int) -> str:
         return "Greek"
 
     # Arabic
-    if (0x0600 <= cp <= 0x06FF) or (0x0750 <= cp <= 0x077F) or (0x08A0 <= cp <= 0x08FF):
+    if (
+        (0x0600 <= cp <= 0x06FF)
+        or (0x0750 <= cp <= 0x077F)
+        or (0x08A0 <= cp <= 0x08FF)
+        or (0xFB50 <= cp <= 0xFDFF)
+        or (0xFE70 <= cp <= 0xFEFF)
+    ):
         return "Arabic"
+
+    # Hebrew
+    if (0x0590 <= cp <= 0x05FF) or (0xFB1D <= cp <= 0xFB4F):
+        return "Hebrew"
 
     ch = chr(cp)
     cat = unicodedata.category(ch)
@@ -76,6 +86,16 @@ def _classify_script(cp: int) -> str:
         return "Common"
 
     return "Other"
+
+
+_RTL_SCRIPTS = frozenset({"Arabic", "Hebrew"})
+_LTR_SCRIPTS = frozenset({"Latin", "Hangul", "Han", "Hiragana", "Katakana", "Cyrillic", "Greek"})
+
+_SPANISH_UNIQUE_MARKERS = frozenset("ñÑ¿¡")
+_GERMAN_UNIQUE_MARKERS = frozenset("ß")
+_GERMAN_UMLAUTS = frozenset("äöüÄÖÜ")
+_FRENCH_UNIQUE_MARKERS = frozenset("œŒ")
+_FRENCH_SPECIAL = frozenset("çÇ")
 
 
 def compute_script_ratios(text: str) -> dict[str, float]:
@@ -105,15 +125,24 @@ def check_mixed_script(counts: dict[str, int], threshold: float = 0.15) -> bool:
     return False
 
 
-def detect_language(
+def _detect_language_raw(
     text: str,
     counts: dict[str, int],
     cfg: LanguageStructuralStepConfig,
 ) -> tuple[str | None, float]:
-    """Hybrid language detection (rule-based with CJK markers and optional langdetect fallback for ja/zh)."""
     clean_len = sum(
         counts.get(s, 0)
-        for s in ("Hangul", "Latin", "Han", "Hiragana", "Katakana", "Cyrillic", "Greek", "Arabic")
+        for s in (
+            "Hangul",
+            "Latin",
+            "Han",
+            "Hiragana",
+            "Katakana",
+            "Cyrillic",
+            "Greek",
+            "Arabic",
+            "Hebrew",
+        )
     )
     if clean_len < cfg.min_text_length_for_detection:
         return None, 0.0
@@ -126,6 +155,7 @@ def detect_language(
     cyrillic = counts.get("Cyrillic", 0)
     greek = counts.get("Greek", 0)
     arabic = counts.get("Arabic", 0)
+    hebrew = counts.get("Hebrew", 0)
 
     # Rule 1: Japanese kana present -> Japanese (Hanzi in Japanese is normal)
     if hiragana > 0 or katakana > 0:
@@ -135,17 +165,15 @@ def detect_language(
     if hangul > 0 and hangul >= (clean_len * 0.3):
         return "ko", 0.95
 
-    # Rule 3: Latin dominant -> English
-    if latin > 0 and latin >= (clean_len * 0.5):
-        return "en", 0.90
-
-    # Rule 3b: Cyrillic / Greek / Arabic dominant
+    # Rule 3: Cyrillic / Greek / Arabic / Hebrew dominant
     if cyrillic > 0 and cyrillic >= (clean_len * 0.5):
         return "ru", 0.90
     if greek > 0 and greek >= (clean_len * 0.5):
         return "el", 0.90
     if arabic > 0 and arabic >= (clean_len * 0.5):
         return "ar", 0.90
+    if hebrew > 0 and hebrew >= (clean_len * 0.5):
+        return "he", 0.90
 
     # Rule 4: Pure Han characters (ja vs zh ambiguity)
     if han > 0 and hangul == 0 and hiragana == 0 and katakana == 0:
@@ -189,7 +217,53 @@ def detect_language(
                 pass
         return None, 0.0
 
+    # Rule 5: Latin dominant
+    if latin > 0 and latin >= (clean_len * 0.5):
+        if cfg.detect_latin_dialects:
+            # 5a. Direct character markers
+            if any(ch in _SPANISH_UNIQUE_MARKERS for ch in text):
+                return "es", 0.95
+            if any(ch in _GERMAN_UNIQUE_MARKERS for ch in text):
+                return "de", 0.95
+            if any(ch in _FRENCH_UNIQUE_MARKERS for ch in text):
+                return "fr", 0.95
+            if any(ch in _FRENCH_SPECIAL for ch in text) and not any(ch in _SPANISH_UNIQUE_MARKERS for ch in text):
+                return "fr", 0.90
+            if any(ch in _GERMAN_UMLAUTS for ch in text) and not any(ch in _SPANISH_UNIQUE_MARKERS for ch in text):
+                return "de", 0.90
+
+            # 5b. Statistical fallback via langdetect for European Latin languages
+            if cfg.fallback_detector == "langdetect":
+                try:
+                    import langdetect
+                    from langdetect import DetectorFactory
+
+                    DetectorFactory.seed = 0
+                    langs = langdetect.detect_langs(text)
+                    if langs:
+                        best = langs[0]
+                        code = best.lang.lower()
+                        if code in ("es", "fr", "de", "it", "pt", "en") and best.prob >= 0.7:
+                            return code, round(best.prob, 2)
+                except Exception:
+                    pass
+
+        return "en", 0.90
+
     return None, 0.0
+
+
+def detect_language(
+    text: str,
+    counts: dict[str, int],
+    cfg: LanguageStructuralStepConfig,
+) -> tuple[str | None, float]:
+    """Hybrid language detection with script ratios, markers, and optional fallback."""
+    lang, conf = _detect_language_raw(text, counts, cfg)
+    if lang is not None and cfg.supported_languages is not None:
+        if lang not in cfg.supported_languages:
+            return None, 0.0
+    return lang, conf
 
 
 _HTML_TAG_RE = re.compile(r"<[a-zA-Z][^>]*>")
@@ -229,6 +303,18 @@ def extract_structural_hints(text: str) -> StructuralHints:
     # Combine word tokens with single CJK characters to approximate count
     word_count = non_cjk_words + cjk_char_count
 
+    # Direction: calculate RTL vs LTR script dominance
+    rtl_count = 0
+    ltr_count = 0
+    for ch in text:
+        sc = _classify_script(ord(ch))
+        if sc in _RTL_SCRIPTS:
+            rtl_count += 1
+        elif sc in _LTR_SCRIPTS:
+            ltr_count += 1
+
+    direction = "rtl" if (rtl_count > 0 and rtl_count >= ltr_count) else "ltr"
+
     return StructuralHints(
         has_html=has_html,
         has_markdown=has_markdown,
@@ -237,7 +323,7 @@ def extract_structural_hints(text: str) -> StructuralHints:
         has_code_block=has_code_block,
         sentence_count=sentence_count,
         word_count=word_count,
-        direction="ltr",
+        direction=direction,
     )
 
 

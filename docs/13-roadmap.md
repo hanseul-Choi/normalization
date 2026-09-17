@@ -86,10 +86,17 @@
 - 릴리스 정합성 및 `py.typed` 패키징 무결성 검증 테스트 구축 (`tests/test_version_and_release.py`)
 - v1 로드맵 전 항목 완수 및 프로덕션 릴리스 준비 완료
 
-## v1 범위 밖 (명시적 제외, 향후 후보)
+## Phase 11 — 다국어(Multilingual) 언어 판별 확장 & RTL 지원 [완료]
 
-- 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — (Phase 6에서 완료)
-- ko/en/ja/zh 외 언어 지원 확장
+- RTL 스크립트 감지 및 텍스트 방향성 자동 판별 (`direction = "rtl"`: Arabic, Hebrew 지원)
+- Latin 유럽 주요 언어군(es, fr, de) 판별 확장 (고유 특수문자/다이어크리틱 1차 감지 및 2차 fallback 통합)
+- Cyrillic (`ru`), Greek (`el`), Arabic (`ar`), Hebrew (`he`) 언어 판별 고도화
+- `LanguageStructuralStepConfig`에 다국어 설정 옵션 추가 (`detect_latin_dialects`, `supported_languages`)
+- 다국어 및 RTL 텍스트 정규화 테스트 스위트 구축 완료 (총 177개 테스트 통과)
+
+## 향후 후보 (Backlog)
+
+- ko/en/ja/zh/es/fr/de/ru/ar/he 외 소수 언어 지원
 - ML 기반 스코어링/분류 (이 라이브러리는 신호 추출까지만 담당, 판정은 상위 레이어 책임)
 - 내장 금칙어/블록리스트 사전 (외부 주입 방식 유지) — (Phase 7에서 완료)
 - CLI 고도화, 웹 서비스/데몬화 — (Phase 6, 7에서 완료)
