@@ -57,6 +57,13 @@
 - CLI 파일 입출력 플래그 (`-i/--input`, `-o/--output`, `--format text|jsonl`)
 - UTS #39 Confusables 데이터 빌드 및 자동 갱신 스크립트 (`scripts/build_confusables.py`)
 
+## Phase 7 — 가드레일 플러그인 팩 및 HTTP API 데몬 [완료]
+
+- 외부 주입 사전 고속 매칭 플러그인 (`secnorm.plugins.KeywordMatcherStep`, 순수 파이썬 Trie 지원)
+- 보안 정규식 탐지 가드레일 플러그인 (`secnorm.plugins.RegexGuardrailStep`)
+- 표준 라이브러리 기반 경량 HTTP REST API 서버 데몬 (`secnorm.server` / `secnorm serve`)
+- 마이크로서비스 연동 테스트 및 CLI 서브커맨드 구현 완료
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
 - 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — v1은 실시간 단건 처리가 우선

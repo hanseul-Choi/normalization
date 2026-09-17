@@ -160,6 +160,67 @@ cat input.txt | secnorm --preset llm_input_sanitize > output.txt
 
 # 모듈 형태로 직접 실행
 python -m secnorm "Hello   world"
+
+# 경량 HTTP REST API 데몬 구동 (추가 의존성 없음)
+secnorm serve --host 127.0.0.1 --port 8000
+# 또는 python -m secnorm.server --port 8000
+```
+
+---
+
+## 내장 가드레일 플러그인 팩 (`secnorm.plugins`)
+
+외부에서 주입한 금칙어/블록리스트 및 정규식 패턴을 파이프라인에 즉시 통합할 수 있습니다:
+
+```python
+import secnorm
+from secnorm.plugins import KeywordMatcherStep, RegexGuardrailStep
+
+pipeline = secnorm.Pipeline.from_preset("security_balanced")
+
+# 1. 고속 Trie 기반 키워드/금칙어 사전 매칭 (마스킹 지원)
+keyword_step = KeywordMatcherStep(
+    keywords=["forbidden", "malware", "phishing"],
+    mask="***",
+    severity="high",
+)
+pipeline.insert_step(keyword_step, after="obfuscation")
+
+# 2. 정규식 가드레일 (개인정보, API 키, 인젝션 패턴 등)
+regex_step = RegexGuardrailStep(
+    patterns={
+        "api_key": r"sk-[a-zA-Z0-9]{16}",
+        "phone": r"\b\d{3}-\d{4}-\d{4}\b",
+    },
+    severity="high",
+)
+pipeline.insert_step(regex_step, after="keyword_matcher")
+
+result = pipeline.run("Notice: forbidden file detected from 010-1234-5678.")
+print(result.normalized_text)  # "Notice: *** file detected from 010-1234-5678."
+for flag in result.flags:
+    print(f"[{flag.severity.upper()}] {flag.category}: {flag.detail} (span: {flag.span})")
+```
+
+---
+
+## HTTP REST API 마이크로서비스
+
+`secnorm serve`로 서버를 시작하면 Node.js, Go, Java 등 다양한 백엔드에서 JSON API로 정규화를 수행할 수 있습니다:
+
+```bash
+# 헬스체크
+curl http://127.0.0.1:8000/health
+
+# 단건 텍스트 정규화
+curl -X POST http://127.0.0.1:8000/normalize \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Check аpple.com deals!", "preset": "security_balanced"}'
+
+# 일괄(Batch) 정규화
+curl -X POST http://127.0.0.1:8000/normalize/batch \
+  -H "Content-Type: application/json" \
+  -d '{"texts": ["Hello   world", "аpple.com"], "preset": "security_strict"}'
 ```
 
 ---
