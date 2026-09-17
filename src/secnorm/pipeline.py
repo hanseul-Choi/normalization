@@ -16,7 +16,7 @@ from .models import (
 )
 from .spanmap import Edit, SpanMap
 
-PIPELINE_VERSION = "0.1.0.dev0"
+PIPELINE_VERSION = "1.0.0"
 
 _EMPTY_LANGUAGE_METADATA = LanguageMetadata(
     primary_language=None,

@@ -78,6 +78,14 @@
 - 추가 스크립트 비율 감지(Cyrillic, Greek, Arabic) 지원 확장
 - CJK 정밀 언어 테스트 스위트 구축 완료
 
+## Phase 10 — v1.0.0 정식 릴리스 & 패키징 자동화 [완료]
+
+- 버전 `v1.0.0` 확정 (`pyproject.toml`, `secnorm.__version__`, `PIPELINE_VERSION`)
+- CI/CD 자동 배포 파이프라인 구축 (`.github/workflows/publish.yml`: 태그 생성 시 PyPI 및 GitHub Releases 배포)
+- 체인지로그 작성 (`CHANGELOG.md`: Phase 0~10 전체 핵심 기능 명시)
+- 릴리스 정합성 및 `py.typed` 패키징 무결성 검증 테스트 구축 (`tests/test_version_and_release.py`)
+- v1 로드맵 전 항목 완수 및 프로덕션 릴리스 준비 완료
+
 ## v1 범위 밖 (명시적 제외, 향후 후보)
 
 - 스트리밍/대용량 배치 처리량 최적화 (병렬 워커, 청크 스트리밍) — (Phase 6에서 완료)

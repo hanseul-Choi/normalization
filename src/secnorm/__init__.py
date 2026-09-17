@@ -19,6 +19,7 @@ from .models import (
     Transformation,
 )
 from .pipeline import (
+    PIPELINE_VERSION,
     NormalizationPipeline,
     Pipeline,
     PipelineContext,
@@ -27,6 +28,8 @@ from .pipeline import (
 )
 from .presets import build_preset
 from .spanmap import Edit, SpanMap
+
+__version__ = PIPELINE_VERSION
 from .steps import (
     EncodingEscapingStep,
     InvisibleControlStep,
@@ -90,6 +93,7 @@ __all__ = [
     "NormalizationResult",
     "ObfuscationStep",
     "ObfuscationStepConfig",
+    "PIPELINE_VERSION",
     "Pipeline",
     "PipelineContext",
     "PipelineStep",
@@ -107,6 +111,7 @@ __all__ = [
     "UnicodeStepConfig",
     "WhitespaceStep",
     "WhitespaceStepConfig",
+    "__version__",
     "build_preset",
     "compute_script_ratios",
     "evaluate_risk",

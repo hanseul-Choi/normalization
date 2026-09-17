@@ -1,6 +1,15 @@
 # secnorm
 
+[![CI](https://github.com/hanseul-Choi/normalization/actions/workflows/ci.yml/badge.svg)](https://github.com/hanseul-Choi/normalization/actions/workflows/ci.yml)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/hanseul-Choi/normalization)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://pypi.org/project/secnorm/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 의도적으로 난독화되거나 변형된 텍스트를 **표준화된 정규화 뷰(Normalized View)** 로 수렴시키는 CPU 기반 Python 라이브러리.
+
+```bash
+pip install secnorm
+```
 
 ---
 
