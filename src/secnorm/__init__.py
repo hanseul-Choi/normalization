@@ -73,6 +73,8 @@ def normalize_batch(
         return list(executor.map(pipeline.run, texts))
 
 
+from .streaming import normalize_file, normalize_stream
+
 __all__ = [
     "Edit",
     "EncodingEscapingStep",
@@ -106,4 +108,6 @@ __all__ = [
     "compute_script_ratios",
     "normalize",
     "normalize_batch",
+    "normalize_file",
+    "normalize_stream",
 ]

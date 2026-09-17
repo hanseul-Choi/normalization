@@ -65,3 +65,48 @@ def test_cli_version(capsys):
     assert exc_info.value.code == 0
     out, err = capsys.readouterr()
     assert f"secnorm {PIPELINE_VERSION}" in out
+
+
+def test_cli_input_and_output_file(tmp_path):
+    in_file = tmp_path / "in.txt"
+    out_file = tmp_path / "out.txt"
+    in_file.write_text("Hello   world!\nаpple.com\n", encoding="utf-8")
+
+    ret = main(["-i", str(in_file), "-o", str(out_file)])
+    assert ret == 0
+    assert out_file.read_text(encoding="utf-8").splitlines() == [
+        "Hello world!",
+        "apple.com",
+    ]
+
+
+def test_cli_file_jsonl_format(tmp_path):
+    in_file = tmp_path / "in.txt"
+    out_file = tmp_path / "out.jsonl"
+    in_file.write_text("аpple.com\n", encoding="utf-8")
+
+    ret = main(["-i", str(in_file), "-o", str(out_file), "--format", "jsonl"])
+    assert ret == 0
+
+    lines = out_file.read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    data = json.loads(lines[0])
+    assert data["normalized_text"] == "apple.com"
+    assert data["raw_text"] == "аpple.com"
+
+
+def test_cli_input_file_to_stdout(tmp_path, capsys):
+    in_file = tmp_path / "in.txt"
+    in_file.write_text("Line   one\nLine   two\n", encoding="utf-8")
+
+    ret = main(["-i", str(in_file)])
+    assert ret == 0
+    out, err = capsys.readouterr()
+    assert out.splitlines() == ["Line one", "Line two"]
+
+
+def test_cli_single_text_to_output_file(tmp_path):
+    out_file = tmp_path / "out.txt"
+    ret = main(["Test   sentence", "-o", str(out_file)])
+    assert ret == 0
+    assert out_file.read_text(encoding="utf-8").strip() == "Test sentence"
