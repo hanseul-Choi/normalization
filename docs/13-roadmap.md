@@ -102,6 +102,13 @@
 - 멀티프로세싱 기반 고속 병렬 배치 처리 (`secnorm.normalize_batch(..., backend="process")`)
 - CLI 병렬 작업 및 백엔드 플래그 (`-j/--jobs`, `--backend`) 지원 완료 (총 187개 테스트 통과)
 
+## Phase 13 — PII (개인식별정보) 탐지 & 마스킹 가드레일 팩 [완료]
+
+- 개인식별정보 탐지 및 감사/마스킹 플러그인 (`secnorm.plugins.PIIGuardrailStep`)
+- 신용카드(Luhn 알고리즘 검증), 한국 주민등록번호(RRN 포맷/체크섬), 전화번호(한국/국제), 이메일, IPv4 주소 탐지
+- 유연한 마스킹 모드 (기본 템플릿, 사용자 정의 단일 마스크, 딕셔너리 매핑, Audit-only 모드)
+- `SpanMap` 역추적 연동 및 `RiskScorer` 위험도 스코어링 연동 완료 (총 196개 테스트 통과)
+
 ## 향후 후보 (Backlog)
 
 - ko/en/ja/zh/es/fr/de/ru/ar/he 외 소수 언어 지원
