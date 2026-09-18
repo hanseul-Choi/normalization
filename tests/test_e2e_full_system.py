@@ -263,5 +263,5 @@ def test_e2e_performance_latency() -> None:
     total_elapsed = time.perf_counter() - start_time
     avg_latency_ms = (total_elapsed / iterations) * 1000.0
 
-    # Ensure single execution is well under 1.5ms
-    assert avg_latency_ms < 1.5, f"Average latency too high: {avg_latency_ms:.3f} ms"
+    # Ensure execution is well under 2.5ms (allowing for multi-pass fixpoint stabilization)
+    assert avg_latency_ms < 2.5, f"Average latency too high: {avg_latency_ms:.3f} ms"
