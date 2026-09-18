@@ -11,7 +11,7 @@ Unicode General Category 기준으로 분류하고, 카테고리별로 정책을
 | 카테고리 | 예시 | 기본 정책 |
 |---|---|---|
 | `Cc` (Control) | `\x00`-`\x1F` (탭/개행 제외), `\x7F` | 제거 + `medium` 플래그 |
-| `Cf` (Format) — zero-width | ZWSP `U+200B`, ZWNJ `U+200C`, ZWJ `U+200D`, word joiner `U+2060`, soft hyphen `U+00AD` | 제거 + `medium` 플래그 (단, ZWNJ/ZWJ가 실제 서체 결합에 쓰이는 언어 문맥(아랍어 등)에서는 예외 — v1 지원 언어(ko/en/ja/zh)에는 해당 사례가 없어 기본은 제거) |
+| `Cf` (Format) — zero-width | ZWSP `U+200B`, ZWNJ `U+200C`, ZWJ `U+200D`, word joiner `U+2060`, soft hyphen `U+00AD` | 제거 + `medium` 플래그 (단, 이모지 ZWJ 시퀀스(UTS #51: emoji-ish 문자 사이의 `U+200D`)는 예외적으로 보존하여 복합 이모지 손상을 방지) |
 | `Cf` — bidi control | LRE/RLE/LRO/RLO/PDF `U+202A`-`U+202E`, LRI/RLI/FSI/PDI `U+2066`-`U+2069` | 제거 + **`high`** 플래그 (`bidi_override`) — 파일명/도메인/텍스트 표시 순서를 조작해 사용자를 속이는 "Trojan Source"류 공격에 사용됨 |
 | `Cf` — BOM | `U+FEFF` | 문자열 맨 앞에만 있으면 조용히 제거(인코딩 부산물), 중간에 있으면 제거 + `low` 플래그 |
 | **Unicode Tag 문자** | `U+E0000`-`U+E007F` | 제거 + **`high`** 플래그 (`tag_char_smuggling`) — 2024년 이후 알려진 LLM 프롬프트 인젝션 기법("ASCII smuggling"): 화면에는 전혀 안 보이지만 태그 문자로 인코딩된 아스키 텍스트를 프롬프트에 숨겨 전달하는 수법. 이 단계에서 최우선으로 다룬다. |

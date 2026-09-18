@@ -47,8 +47,40 @@ class _Decision:
     severity: str | None
 
 
-def _is_emoji_ish(ch: str) -> bool:
-    return unicodedata.category(ch) == "So"
+def _is_emoji_ish(ch: str | None) -> bool:
+    if ch is None:
+        return False
+    cat = unicodedata.category(ch)
+    if cat in ("So", "Sk"):
+        return True
+    cp = ord(ch)
+    if 0x1F1E6 <= cp <= 0x1F1FF:  # Regional indicator
+        return True
+    if cp in (0x2640, 0x2642, 0x2695, 0x2696, 0x2708, 0x2709, 0x270A, 0x270B, 0x270C, 0x270D):
+        return True
+    return False
+
+
+def _skip_vs_backward(text: str, idx: int) -> str | None:
+    i = idx - 1
+    while i >= 0:
+        cp = ord(text[i])
+        if cp in _VS_RANGE or cp in _VS_SUPPLEMENT_RANGE:
+            i -= 1
+            continue
+        return text[i]
+    return None
+
+
+def _skip_vs_forward(text: str, idx: int) -> str | None:
+    i = idx + 1
+    while i < len(text):
+        cp = ord(text[i])
+        if cp in _VS_RANGE or cp in _VS_SUPPLEMENT_RANGE:
+            i += 1
+            continue
+        return text[i]
+    return None
 
 
 def _classify(
@@ -56,6 +88,7 @@ def _classify(
     prev: str | None,
     index: int,
     cfg: InvisibleControlStepConfig,
+    text: str = "",
 ) -> _Decision | None:
     if ch in cfg.preserve_whitelist:
         return None
@@ -73,9 +106,15 @@ def _classify(
         return _Decision("strip", "bom", "bom_injection", severity)
 
     if ch in _ZERO_WIDTH:
+        if ch == "\u200D":  # ZWJ
+            prev_base = _skip_vs_backward(text, index)
+            next_base = _skip_vs_forward(text, index)
+            if _is_emoji_ish(prev_base) and _is_emoji_ish(next_base):
+                return None
         if cfg.strip_zero_width:
             return _Decision("strip", "zero_width", "zero_width_injection", "medium")
         return None
+
 
     if ch in _BIDI_OVERRIDE:
         if cfg.strip_bidi_override:
@@ -176,7 +215,7 @@ class InvisibleControlStep:
 
         for i, ch in enumerate(text):
             prev = text[i - 1] if i > 0 else None
-            decision = _classify(ch, prev, i, cfg)
+            decision = _classify(ch, prev, i, cfg, text=text)
 
             if decision is None:
                 flush(i)

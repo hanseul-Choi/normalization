@@ -139,3 +139,31 @@ def test_disabling_strip_control_leaves_control_chars_untouched():
     output = _run("a\x01b", config=config)
     assert output.text == "a\x01b"
     assert output.flags == []
+
+
+def test_emoji_zwj_sequences_preserved():
+    # 1. Fitzpatrick skin tone + ZWJ + role
+    emoji_tech = "👩🏽‍💻"
+    output1 = _run(emoji_tech)
+    assert output1.text == emoji_tech
+    assert not any(f.category == "zero_width_injection" for f in output1.flags)
+
+    # 2. Base + VS16 + ZWJ + gender + VS16
+    emoji_write = "✍️‍♀️"
+    output2 = _run(emoji_write)
+    assert output2.text == emoji_write
+    assert not any(f.category == "zero_width_injection" for f in output2.flags)
+
+    # 3. Multi-person family emoji
+    emoji_family = "👨‍👩‍👧‍👦"
+    output3 = _run(emoji_family)
+    assert output3.text == emoji_family
+    assert not any(f.category == "zero_width_injection" for f in output3.flags)
+
+
+def test_text_zwj_smuggling_stripped():
+    text = "pass\u200Dword"
+    output = _run(text)
+    assert output.text == "password"
+    assert any(f.category == "zero_width_injection" for f in output.flags)
+
