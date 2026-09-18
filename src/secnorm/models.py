@@ -20,6 +20,10 @@ class Span:
     def to_dict(self) -> dict[str, int]:
         return {"start": self.start, "end": self.end}
 
+    @classmethod
+    def from_dict(cls, d: dict[str, int]) -> "Span":
+        return cls(start=d["start"], end=d["end"])
+
 
 @dataclass(slots=True, frozen=True)
 class Transformation:
@@ -42,6 +46,18 @@ class Transformation:
             "metadata": dict(self.metadata),
         }
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Transformation":
+        return cls(
+            step=d["step"],
+            rule=d["rule"],
+            original=d["original"],
+            replacement=d["replacement"],
+            span_before=Span.from_dict(d["span_before"]),
+            span_after=Span.from_dict(d["span_after"]),
+            metadata=dict(d.get("metadata", {})),
+        )
+
 
 @dataclass(slots=True, frozen=True)
 class SuspicionFlag:
@@ -61,6 +77,17 @@ class SuspicionFlag:
             "detail": self.detail,
             "metadata": dict(self.metadata),
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "SuspicionFlag":
+        return cls(
+            category=d["category"],
+            severity=d["severity"],
+            step=d["step"],
+            span=Span.from_dict(d["span"]),
+            detail=d["detail"],
+            metadata=dict(d.get("metadata", {})),
+        )
 
 
 @dataclass(slots=True, frozen=True)
@@ -86,6 +113,19 @@ class StructuralHints:
             "direction": self.direction,
         }
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "StructuralHints":
+        return cls(
+            has_html=bool(d["has_html"]),
+            has_markdown=bool(d["has_markdown"]),
+            has_url=bool(d["has_url"]),
+            has_email=bool(d["has_email"]),
+            has_code_block=bool(d["has_code_block"]),
+            sentence_count=int(d["sentence_count"]),
+            word_count=int(d["word_count"]),
+            direction=d.get("direction", "ltr"),
+        )
+
 
 @dataclass(slots=True, frozen=True)
 class LanguageMetadata:
@@ -103,6 +143,16 @@ class LanguageMetadata:
             "is_mixed_script": self.is_mixed_script,
             "structural": self.structural.to_dict(),
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "LanguageMetadata":
+        return cls(
+            primary_language=d.get("primary_language"),
+            language_confidence=float(d.get("language_confidence", 0.0)),
+            script_ratios=dict(d.get("script_ratios", {})),
+            is_mixed_script=bool(d.get("is_mixed_script", False)),
+            structural=StructuralHints.from_dict(d["structural"]),
+        )
 
 
 @dataclass(slots=True, frozen=True)
@@ -160,3 +210,32 @@ class NormalizationResult:
             ensure_ascii=False,
             indent=indent,
         )
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "NormalizationResult":
+        from .spanmap import SpanMap
+
+        span_map_data = d.get("span_map")
+        if span_map_data is not None and isinstance(span_map_data, dict):
+            span_map = SpanMap.from_dict(span_map_data)
+        else:
+            span_map = SpanMap.identity(len(d.get("normalized_text", "")))
+
+        return cls(
+            raw_text=d.get("raw_text") if d.get("raw_text") is not None else d.get("normalized_text", ""),
+            normalized_text=d["normalized_text"],
+            normalized_variants=dict(d.get("normalized_variants", {})),
+            transformations=[Transformation.from_dict(t) for t in d.get("transformations", [])],
+            flags=[SuspicionFlag.from_dict(f) for f in d.get("flags", [])],
+            language=LanguageMetadata.from_dict(d["language"]),
+            span_map=span_map,
+            config_name=d.get("config_name", "custom"),
+            pipeline_version=d.get("pipeline_version", "unknown"),
+            rule_data_version=dict(d.get("rule_data_version", {})),
+        )
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "NormalizationResult":
+        data = json.loads(json_str)
+        return cls.from_dict(data)
+

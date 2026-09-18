@@ -9,6 +9,7 @@ character-level diffing, since each step already produces minimal edits).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .models import Span
 
@@ -178,3 +179,14 @@ class SpanMap:
                 for s in self._segments
             ]
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SpanMap":
+        segments: list[_Segment] = []
+        for s in data.get("segments", []):
+            cur = Span(s["cur_span"]["start"], s["cur_span"]["end"])
+            raw = Span(s["raw_span"]["start"], s["raw_span"]["end"])
+            exact = bool(s.get("exact", False))
+            segments.append(_Segment(cur, raw, exact))
+        return cls(segments)
+

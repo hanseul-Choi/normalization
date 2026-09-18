@@ -50,6 +50,17 @@ class RiskReport:
             "total_flags": self.total_flags,
         }
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "RiskReport":
+        return cls(
+            score=float(d["score"]),
+            level=d["level"],
+            recommended_action=d["recommended_action"],
+            primary_risks=list(d.get("primary_risks", [])),
+            flags_count=dict(d.get("flags_count", {})),
+            total_flags=int(d.get("total_flags", 0)),
+        )
+
 
 class RiskScorer:
     """Configurable rule-based scorer that evaluates flags into an audit risk score (0.0 - 1.0)."""
@@ -76,7 +87,7 @@ class RiskScorer:
                 level="safe",
                 recommended_action="allow",
                 primary_risks=[],
-                flags_count={"high": 0, "medium": 0, "low": 0},
+                flags_count={"critical": 0, "high": 0, "medium": 0, "low": 0},
                 total_flags=0,
             )
 

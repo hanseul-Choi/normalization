@@ -84,9 +84,15 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
             include_raw_text = payload.get("include_raw_text", True)
             include_risk = payload.get("include_risk", False)
             n_jobs = payload.get("n_jobs", 1)
+            backend = payload.get("backend", "thread")
 
             try:
-                results = secnorm.normalize_batch(texts, preset=preset, n_jobs=n_jobs)
+                results = secnorm.normalize_batch(
+                    texts,
+                    preset=preset,
+                    n_jobs=n_jobs,
+                    backend=backend,
+                )
                 data = [
                     r.to_dict(
                         include_raw_text=include_raw_text,

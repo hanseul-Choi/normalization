@@ -77,6 +77,7 @@ def normalize_file(
     chunk_size: int = 1000,
     n_jobs: int = 1,
     include_raw_text: bool = True,
+    include_risk: bool = False,
 ) -> int:
     """Normalize lines from an input file and write them to an output file.
 
@@ -98,6 +99,8 @@ def normalize_file(
         Worker threads for parallel processing.
     include_raw_text : bool
         Whether to include raw_text in JSON lines (default True).
+    include_risk : bool
+        Whether to include risk scoring assessment in JSON lines (default False).
 
     Returns
     -------
@@ -129,7 +132,13 @@ def normalize_file(
         for result in stream:
             count += 1
             if format == "jsonl":
-                out.write(result.to_json(include_raw_text=include_raw_text) + "\n")
+                out.write(
+                    result.to_json(
+                        include_raw_text=include_raw_text,
+                        include_risk=include_risk,
+                    )
+                    + "\n"
+                )
             else:
                 out.write(result.normalized_text + "\n")
 

@@ -134,7 +134,13 @@ def main(argv: list[str] | None = None) -> int:
             with args.output.open("w", encoding="utf-8") as out:
                 for res in results:
                     if args.format == "jsonl":
-                        out.write(res.to_json(include_raw_text=not args.no_raw) + "\n")
+                        out.write(
+                            res.to_json(
+                                include_raw_text=not args.no_raw,
+                                include_risk=args.score,
+                            )
+                            + "\n"
+                        )
                     else:
                         out.write(res.normalized_text + "\n")
             return 0
@@ -145,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
             preset=args.preset,
             format=args.format,
             include_raw_text=not args.no_raw,
+            include_risk=args.score,
         )
         return 0
 
@@ -157,9 +164,19 @@ def main(argv: list[str] | None = None) -> int:
             for line in f:
                 res = secnorm.normalize(line.rstrip("\r\n"), preset=args.preset)
                 if args.format == "jsonl" or args.json:
-                    print(res.to_json(include_raw_text=not args.no_raw))
+                    print(
+                        res.to_json(
+                            include_raw_text=not args.no_raw,
+                            include_risk=args.score,
+                        )
+                    )
                 else:
                     print(res.normalized_text)
+                    if args.score:
+                        report = res.evaluate_risk()
+                        print(
+                            f"[Risk: score={report.score:.2f}, level={report.level}, action={report.recommended_action}, flags={report.total_flags}]"
+                        )
             return 0
     else:
         if sys.stdin.isatty():
