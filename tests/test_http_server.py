@@ -129,3 +129,38 @@ def test_http_not_found(http_server: str):
     with pytest.raises(urllib.error.HTTPError) as exc_info:
         urllib.request.urlopen(url, timeout=5)
     assert exc_info.value.code == 404
+
+
+def test_http_batch_bad_request_types(http_server: str):
+    url = f"{http_server}/normalize/batch"
+    invalid_payloads = [
+        {"texts": ["ok", 123]},
+        {"texts": [None]},
+        {"texts": "not-a-list"},
+        {"texts": ["ok"], "n_jobs": "not-an-int"},
+        {"texts": ["ok"], "n_jobs": 0},
+    ]
+    for p in invalid_payloads:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(p).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(req, timeout=5)
+        assert exc_info.value.code == 400
+
+    # Ensure server survived and handles next valid request
+    valid_req = urllib.request.Request(
+        url,
+        data=json.dumps({"texts": ["alive"]}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(valid_req, timeout=5) as resp:
+        assert resp.status == 200
+        data = json.loads(resp.read().decode("utf-8"))
+        assert len(data) == 1
+        assert data[0]["normalized_text"] == "alive"
+

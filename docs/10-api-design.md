@@ -86,3 +86,11 @@ result.to_json()
 ## 타입 힌트 / 정적 검사
 
 - 전체 public API에 타입 힌트 필수, `py.typed` 마커 포함해 배포 (PEP 561) — 이 라이브러리를 import하는 쪽에서도 타입 체크 혜택.
+
+## HTTP API 데몬 (`secnorm serve`)
+
+표준 라이브러리 기반 경량 REST API 서버 (`src/secnorm/server.py`):
+- `GET /health`: 서버 헬스체크 및 버전 반환.
+- `POST /normalize`: 단건 정규화 (`text: str` 필수).
+- `POST /normalize/batch`: 다건 배치 정규화 (`texts: list[str]` 필수). 리스트의 모든 원소는 문자열이어야 하며, `n_jobs`는 1 이상의 양의 정수여야 함. 유효하지 않은 입력 형식은 400 Bad Request를 반환함.
+

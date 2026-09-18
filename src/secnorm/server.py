@@ -76,7 +76,7 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/normalize/batch":
             texts = payload.get("texts")
-            if texts is None or not isinstance(texts, list):
+            if texts is None or not isinstance(texts, list) or not all(isinstance(t, str) for t in texts):
                 self._send_error(400, "'texts' field is required and must be a list of strings")
                 return
 
@@ -84,6 +84,9 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
             include_raw_text = payload.get("include_raw_text", True)
             include_risk = payload.get("include_risk", False)
             n_jobs = payload.get("n_jobs", 1)
+            if not isinstance(n_jobs, int) or n_jobs < 1:
+                self._send_error(400, "'n_jobs' must be a positive integer")
+                return
             backend = payload.get("backend", "thread")
 
             try:
@@ -101,7 +104,7 @@ class SecnormRequestHandler(BaseHTTPRequestHandler):
                     for r in results
                 ]
                 self._send_json(200, data)
-            except ValueError as e:
+            except (ValueError, TypeError) as e:
                 self._send_error(400, str(e))
 
         else:
