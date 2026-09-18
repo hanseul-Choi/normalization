@@ -78,3 +78,17 @@ def test_no_change_returns_empty_transformations():
 def test_line_and_paragraph_separators_become_newline():
     output = _run("a b", cfg=WhitespaceStepConfig(mode="structural", trim_edges=False))
     assert output.text == "a\nb"
+
+
+def test_cr_and_crlf_universal_newline():
+    # " \t\r\n " -> "" in strict mode with trim_edges
+    output_minimal = _run(" \t\r\n ", cfg=WhitespaceStepConfig(mode="strict", trim_edges=True))
+    assert output_minimal.text == ""
+
+    # CRLF in structural mode preserves single vs double newline distinctions
+    output_structural = _run(
+        "line1\r\nline2\r\n\r\nline3",
+        cfg=WhitespaceStepConfig(mode="structural", trim_edges=False),
+    )
+    assert output_structural.text == "line1\nline2\n\nline3"
+

@@ -49,6 +49,7 @@ class WhitespaceStepConfig:
 ### 구현 노트 (`WhitespaceStepConfig`에 명시적 필드가 없던 부분)
 
 - `U+000B`(수직 탭)/`U+000C`(폼 피드)는 표에서 "\n 또는 space, 설정 가능"이라고만 돼 있었으나 별도 config 필드는 없다 — 실제 구현은 개행/문단 구분자(`U+2028`/`U+2029`)와 묶어 항상 `\n`으로 치환한다.
+- CRLF(`\r\n`) 및 단독 CR(`\r`)은 전처리 단계에서 universal-newline 방식으로 LF(`\n`)로 정규화된다. `\r\n`이 단일 `\n`으로 치환되므로 `structural` 모드에서 단락 구분이 불필요하게 늘어나는 회귀 없이 정확하게 보존된다.
 - `tab_policy="keep"`일 때 탭은 두 모드(`strict`/`structural`) 모두에서 공백 축약 정규식의 대상에서 완전히 제외된다 (연속된 탭도 축약되지 않음). `strict` 모드의 "모든 공백류를 단일 space로 축약"이라는 설명은 `tab_policy="to_space"`(기본값)를 전제로 한 것으로 이해한다 — 그렇지 않으면 `tab_policy="keep"`이 `strict`(기본 모드)에서 아무 의미가 없어지기 때문.
 - `preserve_ideographic_space`는 이 문서가 언급한 "7단계 언어 감지 결과 기반 조건부 보존" 없이, boolean 플래그로만 구현했다 (언어 조건부 버전은 `docs/13-roadmap.md` Phase 2의 script-ratio prepass에 의존하므로 후순위).
 - 공백류 문자 종류 혼용에 대한 `separator_injection` 플래그(위 "플래그" 절)는 Phase 1에서 구현하지 않았다 — 문서 자체가 상세 처리를 6단계로 위임하고 있고, Phase 1은 우회 탐지 특화 로직이 없는 단계로 범위를 한정하기 때문 (`docs/13-roadmap.md`).

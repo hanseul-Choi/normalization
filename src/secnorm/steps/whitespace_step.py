@@ -40,7 +40,7 @@ _TAB_CODEPOINT = 0x09
 _STRICT_COLLAPSE_RE = re.compile(r"[ \n]+")
 _STRUCTURAL_SPACE_COLLAPSE_RE = re.compile(r" {2,}")
 _STRUCTURAL_NEWLINE_COLLAPSE_RE = re.compile(r"\n{3,}")
-_TRIM_CHARS = " \t\n"
+_TRIM_CHARS = " \t\n\r"
 
 
 def _build_table(cfg: WhitespaceStepConfig) -> dict[int, str]:
@@ -61,7 +61,9 @@ class WhitespaceStep:
         cfg = ctx.config.whitespace
         text = ctx.text
 
-        canonical = text.translate(_build_table(cfg))
+        # Universal-newline normalization: convert CRLF and solitary CR to LF
+        normalized_newlines = text.replace("\r\n", "\n").replace("\r", "\n")
+        canonical = normalized_newlines.translate(_build_table(cfg))
 
         if cfg.mode == "strict":
             collapsed = _STRICT_COLLAPSE_RE.sub(" ", canonical)
