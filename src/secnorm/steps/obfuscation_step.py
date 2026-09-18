@@ -9,11 +9,12 @@ Design principle: "canonical text is conservative, matching variant is aggressiv
 from __future__ import annotations
 
 import base64
+import binascii
 import re
 from typing import Any
 import regex
 
-from ..config import ObfuscationStepConfig
+from ..config import NormalizationConfig, ObfuscationStepConfig
 from ..data.confusables import CONFUSABLE_MAP
 from ..diffutil import diff_edits
 from ..models import Span, SuspicionFlag, Transformation
@@ -267,7 +268,7 @@ class ObfuscationStep:
                                             metadata={"source": "decoded_payload", "depth": 1},
                                         )
                                     )
-                    except Exception:
+                    except (binascii.Error, UnicodeDecodeError, ValueError):
                         pass
 
             # Hex

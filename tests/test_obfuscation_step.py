@@ -1,4 +1,5 @@
 import pytest
+import secnorm
 
 from secnorm.config import NormalizationConfig, ObfuscationStepConfig
 from secnorm.models import Span
@@ -115,3 +116,19 @@ def test_decode_and_recurse():
     out = step.apply(_ctx(text, cfg=cfg))
 
     assert any(f.category == "encoded_payload" for f in out.flags)
+
+
+def test_decode_and_recurse_extracts_inner_flags():
+    import base64
+
+    # 16+ chars base64 encoding of text containing Cyrillic homoglyph "аpple.com/login"
+    inner = "visit https://\u0430pple.com/login now"
+    b64_str = base64.b64encode(inner.encode("utf-8")).decode("ascii")
+    assert len(b64_str) >= 16
+
+    res = secnorm.normalize(b64_str, preset="security_strict")
+    # Base64 payload itself detected
+    assert any(f.category == "encoded_payload" for f in res.flags)
+    # Inner homoglyph detected via decode_and_recurse!
+    assert any(f.detail.startswith("decoded_payload:") for f in res.flags)
+
