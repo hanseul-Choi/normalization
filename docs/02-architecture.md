@@ -106,6 +106,10 @@ class NormalizationPipeline:
     def __init__(self, steps: list[PipelineStep], config: NormalizationConfig): ...
 
     def run(self, text: str) -> NormalizationResult: ...
+    # 결정성 및 멱등성 보장: 보안 지향 프리셋(security_strict, security_balanced, llm_input_sanitize)은
+    # stabilize_output=True 설정을 통해 출력 텍스트가 더 이상 변하지 않을 때까지(fixpoint)
+    # 최대 N회(기본 3회) 파이프라인을 재실행하여 디코딩 후 새로 노출된 위험 요소까지 완전히 제거하고
+    # 모든 플래그/변환을 원본 raw_text 좌표계로 합성(compose)한다.
 
     # 확장성 (확정됨: 단계별 on/off + 커스텀 단계 플러그인)
     def enable(self, step_name: str) -> None: ...

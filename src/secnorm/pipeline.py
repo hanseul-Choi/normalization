@@ -7,6 +7,7 @@ from typing import Protocol
 
 from .config import NormalizationConfig
 from .data import CONFUSABLES_VERSION
+from .diffutil import diff_edits
 from .models import (
     LanguageMetadata,
     NormalizationResult,
@@ -95,7 +96,7 @@ class NormalizationPipeline:
             ]
             self._steps = [s for s in available if s.name in self.config.enabled_steps]
 
-    def run(self, text: str) -> NormalizationResult:
+    def _run_single_pass(self, text: str) -> NormalizationResult:
         span_map = SpanMap.identity(len(text))
         transformations: list[Transformation] = []
         flags: list[SuspicionFlag] = []
@@ -131,6 +132,78 @@ class NormalizationPipeline:
             flags=flags,
             language=current_language if current_language is not None else _EMPTY_LANGUAGE_METADATA,
             span_map=span_map,
+            config_name=self.name,
+            pipeline_version=PIPELINE_VERSION,
+            rule_data_version={"confusables": CONFUSABLES_VERSION},
+        )
+
+    def run(self, text: str) -> NormalizationResult:
+        first_pass = self._run_single_pass(text)
+        if not self.config.stabilize_output:
+            return first_pass
+
+        # Stabilize output (fixpoint loop)
+        combined_span_map = first_pass.span_map
+        all_transformations = list(first_pass.transformations)
+        all_flags = list(first_pass.flags)
+        normalized_variants = dict(first_pass.normalized_variants)
+        last_language = first_pass.language
+
+        prev_text = first_pass.normalized_text
+        for iter_idx in range(2, self.config.max_stabilize_iterations + 1):
+            next_pass = self._run_single_pass(prev_text)
+            if next_pass.normalized_text == prev_text:
+                # Fully stabilized
+                break
+
+            # Remap flags from prev_text coords to original raw_text coords
+            for f in next_pass.flags:
+                raw_span = combined_span_map.to_raw(f.span)
+                meta = dict(f.metadata)
+                meta["stabilize_iteration"] = iter_idx
+                all_flags.append(
+                    SuspicionFlag(
+                        category=f.category,
+                        severity=f.severity,
+                        step=f.step,
+                        span=raw_span,
+                        detail=f.detail,
+                        metadata=meta,
+                    )
+                )
+
+            # Record transformations
+            for t in next_pass.transformations:
+                meta = dict(t.metadata)
+                meta["stabilize_iteration"] = iter_idx
+                all_transformations.append(
+                    Transformation(
+                        step=t.step,
+                        rule=t.rule,
+                        original=t.original,
+                        replacement=t.replacement,
+                        span_before=t.span_before,
+                        span_after=t.span_after,
+                        metadata=meta,
+                    )
+                )
+
+            # Update combined_span_map
+            edits, _ = diff_edits(prev_text, next_pass.normalized_text)
+            combined_span_map = combined_span_map.compose(edits)
+
+            normalized_variants.update(next_pass.normalized_variants)
+            last_language = next_pass.language
+            prev_text = next_pass.normalized_text
+
+        return NormalizationResult(
+            raw_text=text,
+            normalized_text=prev_text,
+            normalized_variants=normalized_variants,
+            transformations=all_transformations,
+            flags=all_flags,
+            language=last_language,
+            span_map=combined_span_map,
             config_name=self.name,
             pipeline_version=PIPELINE_VERSION,
             rule_data_version={"confusables": CONFUSABLES_VERSION},

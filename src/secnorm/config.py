@@ -97,6 +97,8 @@ class NormalizationConfig:
     repeated_char: RepeatedCharStepConfig = field(default_factory=RepeatedCharStepConfig)
     obfuscation: ObfuscationStepConfig = field(default_factory=ObfuscationStepConfig)
     language_structural: LanguageStructuralStepConfig = field(default_factory=LanguageStructuralStepConfig)
+    stabilize_output: bool = False
+    max_stabilize_iterations: int = 3
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
@@ -137,6 +139,10 @@ class NormalizationConfig:
             if ls.get("supported_languages") is not None:
                 ls["supported_languages"] = tuple(ls["supported_languages"])
             cfg.language_structural = LanguageStructuralStepConfig(**ls)
+        if "stabilize_output" in data:
+            cfg.stabilize_output = bool(data["stabilize_output"])
+        if "max_stabilize_iterations" in data:
+            cfg.max_stabilize_iterations = int(data["max_stabilize_iterations"])
         return cfg
 
     @classmethod

@@ -69,6 +69,7 @@ def build_preset(name: str) -> NormalizationPipeline:
 
     if name == "security_balanced":
         config = NormalizationConfig()  # all 7 steps enabled by default
+        config.stabilize_output = True
         return NormalizationPipeline(_build_full_steps(), config, name=name)
 
     if name == "security_strict":
@@ -77,6 +78,7 @@ def build_preset(name: str) -> NormalizationPipeline:
         config.obfuscation.decode_and_recurse = True
         config.encoding_escaping.decode_url_encoding = "always"
         config.encoding_escaping.flag_decoded_markup = True
+        config.stabilize_output = True
         return NormalizationPipeline(_build_full_steps(), config, name=name)
 
     if name == "llm_input_sanitize":
@@ -84,6 +86,7 @@ def build_preset(name: str) -> NormalizationPipeline:
         config.invisible_control.strip_variation_selectors = "all"
         config.obfuscation.decode_and_recurse = False
         config.encoding_escaping.flag_decoded_markup = True
+        config.stabilize_output = True
         return NormalizationPipeline(_build_full_steps(), config, name=name)
 
     raise ValueError(f"unknown preset: {name!r}")

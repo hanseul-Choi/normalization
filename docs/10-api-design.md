@@ -24,9 +24,9 @@ result = secnorm.normalize(text, preset="security_strict")
 
 | 프리셋 | 용도 | 특징 |
 |---|---|---|
-| `security_strict` | 스팸/우회 탐지 최우선, 오탐 감수 | 6단계 전체 on + `decode_and_recurse` on |
-| `security_balanced` (기본) | 실서비스 실시간 처리 기본값 | homoglyph만 canonical 반영, 나머지 6단계는 탐지(플래그)만 |
-| `llm_input_sanitize` | LLM에 넣기 전 정제 | 2단계(invisible/control, 특히 tag char/bidi/VS)를 최우선 강화, 나머지는 `security_balanced`와 유사 |
+| `security_strict` | 스팸/우회 탐지 최우선, 오탐 감수 | 6단계 전체 on + `decode_and_recurse` on + `stabilize_output=True` (fixpoint 멱등성) |
+| `security_balanced` (기본) | 실서비스 실시간 처리 기본값 | homoglyph canonical 반영 + `stabilize_output=True` (fixpoint 멱등성) |
+| `llm_input_sanitize` | LLM에 넣기 전 정제 | 2단계 강화 + 활성 마크업 플래그 + `stabilize_output=True` (fixpoint 멱등성) |
 | `nlp_preprocessing` | 검색/분류 등 일반 NLP | 1~5단계만, 6단계 off, `whitespace.mode="structural"` |
 | `minimal` | 최소 정규화만 | 1단계(unicode NFC)와 3단계 공백 trim만 |
 

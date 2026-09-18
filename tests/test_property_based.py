@@ -103,3 +103,29 @@ def test_dos_resistance_linear_time(text: str):
     elapsed = time.perf_counter() - start
     # 2000 chars should comfortably process within 0.5s in pure Python on CPU
     assert elapsed < 0.5
+
+
+def test_fixpoint_escaped_zero_width_space():
+    # Literal unicode escape for zero-width space
+    raw = "hello\\u200bworld"
+    res = secnorm.normalize(raw, preset="security_balanced")
+    # In one call, \u200b is decoded to ZWSP, then ZWSP is stripped
+    assert res.normalized_text == "helloworld"
+    # Both flags are present
+    categories = [f.category for f in res.flags]
+    assert "encoded_payload" in categories
+    assert "zero_width_injection" in categories
+    # The zero_width_injection flag's span maps back to the \u200b in raw_text
+    zw_flag = next(f for f in res.flags if f.category == "zero_width_injection")
+    assert raw[zw_flag.span.start : zw_flag.span.end] == "\\u200b"
+
+
+def test_fixpoint_double_url_encoding():
+    raw = "%253Cscript%253E"
+    res = secnorm.normalize(raw, preset="security_strict")
+    # In one call, %253C -> %3C -> <script>
+    assert res.normalized_text == "<script>"
+    # Idempotent: normalizing again yields the exact same normalized_text
+    res2 = secnorm.normalize(res.normalized_text, preset="security_strict")
+    assert res2.normalized_text == res.normalized_text
+
