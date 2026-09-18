@@ -49,6 +49,8 @@ class EncodingEscapingStepConfig:
     decode_url_encoding: Literal["url_context_only", "always", "off"] = "url_context_only"
     unicode_escape_policy: Literal["decode_and_flag", "flag_only", "ignore"] = "decode_and_flag"
     mojibake_repair: bool = False
+    flag_decoded_markup: bool = False
+
 
 
 @dataclass

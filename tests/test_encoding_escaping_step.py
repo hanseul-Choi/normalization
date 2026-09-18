@@ -132,3 +132,25 @@ def test_security_strict_url_decoding_risk_action():
     report = res.evaluate_risk()
     assert report.recommended_action != "allow"
 
+
+def test_decoded_markup_flagged_in_security_strict_and_llm_sanitize():
+    import secnorm
+
+    html_exploit = "&lt;script&gt;alert(1)&lt;/script&gt;"
+
+    # security_strict should flag decoded_markup
+    res_strict = secnorm.normalize(html_exploit, preset="security_strict")
+    assert res_strict.normalized_text == "<script>alert(1)</script>"
+    assert any(f.category == "decoded_markup" for f in res_strict.flags)
+
+    # llm_input_sanitize should flag decoded_markup
+    res_llm = secnorm.normalize(html_exploit, preset="llm_input_sanitize")
+    assert res_llm.normalized_text == "<script>alert(1)</script>"
+    assert any(f.category == "decoded_markup" for f in res_llm.flags)
+
+    # security_balanced should NOT flag decoded_markup (false positive preservation)
+    res_bal = secnorm.normalize(html_exploit, preset="security_balanced")
+    assert res_bal.normalized_text == "<script>alert(1)</script>"
+    assert not any(f.category == "decoded_markup" for f in res_bal.flags)
+
+

@@ -10,7 +10,9 @@
 
 - `&amp;`, `&lt;`, `&#39;`, `&#x27;` 등을 실제 문자로 변환.
 - 표준 라이브러리 `html.unescape()` 사용.
-- 디코딩 후 결과에 다시 `<`, `>` 등 HTML 특수문자가 생기면 → 이 자체는 정상(사용자가 HTML entity로 인코딩된 코드 스니펫을 붙여넣었을 수 있음), 플래그는 만들지 않음. 단 7단계 구조 메타데이터의 `has_html` 판단에는 반영.
+- 디코딩 후 결과에 다시 `<`, `>` 등 HTML 특수문자가 생기면 → 이 자체는 정상(사용자가 HTML entity로 인코딩된 코드 스니펫을 붙여넣었을 수 있음), 기본적으로 플래그는 만들지 않음 (`security_balanced`, `nlp_preprocessing`, `minimal`). 단 7단계 구조 메타데이터의 `has_html` 판단에는 반영.
+- 단, `security_strict` 및 `llm_input_sanitize` 프리셋(`flag_decoded_markup=True`)은 예외적으로 디코딩 결과에 활성 태그 마크업(`<[a-zA-Z/!]`)이 검출될 경우 `SuspicionFlag(category="decoded_markup", severity="medium", detail="active_markup_revealed_from_html_entity")` 플래그를 생성한다.
+
 
 ### 4-2. URL Percent-encoding 디코딩
 

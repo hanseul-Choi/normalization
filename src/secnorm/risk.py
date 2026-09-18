@@ -24,6 +24,7 @@ _DEFAULT_CATEGORY_MULTIPLIERS: dict[str, float] = {
     "tag_char_smuggling": 1.3,
     "pii_detected": 1.2,
     "encoded_payload": 1.2,
+    "decoded_markup": 1.2,
     "homoglyph": 1.1,
     "zero_width_injection": 1.1,
 }

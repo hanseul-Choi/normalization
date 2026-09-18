@@ -43,10 +43,11 @@ from ..pipeline import PipelineContext, StepOutput
 from ..spanmap import Edit, SpanMap
 
 _URL_RE = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
-_PERCENT_ENCODED_RE = re.compile(r"%[0-9A-Fa-f]{2}")
+_PERCENT_ENCODED_RE = re.compile(r"%[0-9a-fA-F]{2}")
 _UNICODE_ESCAPE_RE = re.compile(
-    r"\\u([0-9A-Fa-f]{4})|\\U([0-9A-Fa-f]{8})|\\x([0-9A-Fa-f]{2})|\\N\{([^{}]+)\}"
+    r"\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{8})|\\x([0-9a-fA-F]{2})|\\N\{([^}]+)\}"
 )
+_TAG_START_RE = re.compile(r"<[a-zA-Z/!]")
 
 
 def _decode_urls(text: str, mode: str) -> tuple[str, list[Span]]:
@@ -121,7 +122,22 @@ class EncodingEscapingStep:
             current = new_text
 
         if cfg.decode_html_entities:
-            record_changes(html.unescape(current), "decode_html_entity")
+            unescaped = html.unescape(current)
+            if cfg.flag_decoded_markup and unescaped != current:
+                _, changes = diff_edits(current, unescaped)
+                markup_spans: list[Span] = [
+                    span_before_local
+                    for span_before_local, span_after_local, _orig, _repl in changes
+                    if _TAG_START_RE.match(unescaped[span_after_local.start : span_after_local.start + 10])
+                ]
+                if markup_spans:
+                    record_flags(
+                        markup_spans,
+                        "decoded_markup",
+                        "medium",
+                        "active_markup_revealed_from_html_entity",
+                    )
+            record_changes(unescaped, "decode_html_entity")
 
         if cfg.decode_url_encoding != "off":
             decoded, stray_spans = _decode_urls(current, cfg.decode_url_encoding)

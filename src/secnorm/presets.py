@@ -76,12 +76,14 @@ def build_preset(name: str) -> NormalizationPipeline:
         config.obfuscation.separator_injection_collapse_in_canonical = True
         config.obfuscation.decode_and_recurse = True
         config.encoding_escaping.decode_url_encoding = "always"
+        config.encoding_escaping.flag_decoded_markup = True
         return NormalizationPipeline(_build_full_steps(), config, name=name)
 
     if name == "llm_input_sanitize":
         config = NormalizationConfig()
         config.invisible_control.strip_variation_selectors = "all"
         config.obfuscation.decode_and_recurse = False
+        config.encoding_escaping.flag_decoded_markup = True
         return NormalizationPipeline(_build_full_steps(), config, name=name)
 
     raise ValueError(f"unknown preset: {name!r}")
