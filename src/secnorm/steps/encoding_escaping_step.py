@@ -54,7 +54,8 @@ def _decode_urls(text: str, mode: str) -> tuple[str, list[Span]]:
     if mode == "off":
         return text, []
     if mode == "always":
-        return unquote(text), []
+        all_spans = [Span(*m.span()) for m in _PERCENT_ENCODED_RE.finditer(text)]
+        return unquote(text), all_spans
 
     url_spans = [m.span() for m in _URL_RE.finditer(text)]
     decoded = _URL_RE.sub(lambda m: unquote(m.group(0)), text)
@@ -124,7 +125,10 @@ class EncodingEscapingStep:
 
         if cfg.decode_url_encoding != "off":
             decoded, stray_spans = _decode_urls(current, cfg.decode_url_encoding)
-            record_flags(stray_spans, "encoded_payload", "low", "percent_encoding_outside_url")
+            if cfg.decode_url_encoding == "always":
+                record_flags(stray_spans, "encoded_payload", "medium", "percent_encoding_decoded_always_mode")
+            else:
+                record_flags(stray_spans, "encoded_payload", "low", "percent_encoding_outside_url")
             record_changes(decoded, "decode_url_percent_encoding")
 
         if cfg.unicode_escape_policy == "flag_only":

@@ -17,6 +17,7 @@
 - `%20`, `%3C` 등을 디코딩. 단, **텍스트 전체가 URL이 아닌 경우** 무분별하게 디코딩하면 정상 텍스트를 훼손할 위험이 있음 (예: `100%20`처럼 우연히 percent-encoding처럼 보이는 문자열). 따라서 아래 휴리스틱을 적용:
   - URL로 보이는 구간(스킴 prefix `http(s)://` 또는 도메인 패턴 매치)만 대상으로 `urllib.parse.unquote()` 적용.
   - URL이 아닌 일반 텍스트 구간에서 `%XX` 패턴이 검출되면 `SuspicionFlag(category="encoded_payload", severity="low")`만 남기고 디코딩은 하지 않음 (오탐 방지, 명시적 opt-in으로만 디코딩하도록 설정 제공).
+  - `decode_url_encoding="always"`(예: `security_strict`): 텍스트 전체의 모든 percent-encoding을 무조건 디코딩하고, 검출된 `%XX` 시퀀스마다 `SuspicionFlag(category="encoded_payload", severity="medium", detail="percent_encoding_decoded_always_mode")` 플래그를 생성한다.
 
 ### 4-3. Unicode Escape 시퀀스 디코딩
 
@@ -61,4 +62,5 @@ class EncodingEscapingStepConfig:
 | `AT&amp;T` | `AT&T` | 없음 |
 | `https://example.com/%ED%95%9C%EA%B8%80` | `https://example.com/한글` | 없음 (URL 컨텍스트) |
 | `100%20 할인` (URL 문맥 아님) | `100%20 할인` (디코딩 안 함) | `low` (`encoded_payload`) |
+| `..%2f..%2fetc%2fpasswd` (`always` 모드) | `../../etc/passwd` | `medium` (`encoded_payload`) |
 | `café` 원문에 섞인 정상 한글 `안\uub155` | 정책에 따라 디코딩 (`\uub155`→`녕`) + 플래그 | `medium` |

@@ -47,7 +47,10 @@ def test_url_decoding_always_decodes_even_outside_url_context():
     cfg = EncodingEscapingStepConfig(decode_url_encoding="always")
     output = _run("100%20 discount", cfg=cfg)
     assert output.text == "100  discount"
-    assert output.flags == []
+    assert len(output.flags) == 1
+    assert output.flags[0].category == "encoded_payload"
+    assert output.flags[0].severity == "medium"
+
 
 
 def test_unicode_escape_decoded_and_flagged():
@@ -106,3 +109,26 @@ def test_chained_html_then_url_decode_produces_correct_final_span():
         "decode_html_entity",
         "decode_url_percent_encoding",
     }
+
+
+def test_url_decode_always_mode_flags_percent_encodings():
+    output = _run(
+        "%3Cscript%3Ealert(1)%3C/script%3E",
+        cfg=EncodingEscapingStepConfig(decode_url_encoding="always"),
+    )
+    assert output.text == "<script>alert(1)</script>"
+    assert len(output.flags) == 4
+    assert all(f.category == "encoded_payload" for f in output.flags)
+    assert all(f.severity == "medium" for f in output.flags)
+    assert all(f.detail == "percent_encoding_decoded_always_mode" for f in output.flags)
+
+
+def test_security_strict_url_decoding_risk_action():
+    import secnorm
+
+    res = secnorm.normalize("..%2f..%2fetc%2fpasswd", preset="security_strict")
+    assert res.normalized_text == "../../etc/passwd"
+    assert len(res.flags) > 0
+    report = res.evaluate_risk()
+    assert report.recommended_action != "allow"
+
