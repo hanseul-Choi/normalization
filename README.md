@@ -18,6 +18,7 @@ pip install secnorm
 1. **결정적이고 감사 가능한 정규화**:
    - 동일 입력/설정에 대해 항상 100% 동일한 결과 보장.
    - 원본 위치 ↔ 정규화 위치를 완벽히 역추적하는 `SpanMap` 제공.
+   - 이중 인코딩/중첩 우회 공격을 방어하기 위한 **다단계 고정점 수렴(Fixpoint Multi-pass Stabilization)** 지원.
 2. **7단계 보안 지향 파이프라인**:
    - **Step 1: Unicode Normalization** (NFKC/NFC, 전각/호환 문자 표준화)
    - **Step 2: Invisible/Control Characters** (Zero-width, Bidi override, Unicode Tag/스머글링, VS, 미할당/PUA 처리)
@@ -170,14 +171,14 @@ secnorm "Hello    world!"
 # 프리셋 지정
 secnorm "аpple.com" --preset security_strict
 
-# 전체 감사 결과 JSON 출력
-secnorm "аpple.com" --json
+# 전체 감사 결과 및 위험도 스코어 JSON 출력
+secnorm "аpple.com" --json --score
 
 # 파일 단위 일괄 변환 (텍스트 모드)
 secnorm -i input.txt -o output.txt --preset security_balanced
 
-# 파일 단위 감사 로그 생성 (JSONL 포맷)
-secnorm -i input.txt -o output.jsonl --format jsonl --preset security_strict
+# 파일 단위 감사 로그 및 위험도 생성 (JSONL 포맷)
+secnorm -i input.txt -o output.jsonl --format jsonl --preset security_strict --score
 
 # 파이프 입력 (stdin)
 cat input.txt | secnorm --preset llm_input_sanitize > output.txt
@@ -250,28 +251,44 @@ print(result.normalized_text)  # "Contact [EMAIL] or call [PHONE_NUMBER]."
 # 헬스체크
 curl http://127.0.0.1:8000/health
 
-# 단건 텍스트 정규화
+# 단건 텍스트 정규화 (위험도 점수 포함)
 curl -X POST http://127.0.0.1:8000/normalize \
   -H "Content-Type: application/json" \
-  -d '{"text": "Check аpple.com deals!", "preset": "security_balanced"}'
+  -d '{"text": "Check аpple.com deals!", "preset": "security_balanced", "include_risk": true}'
 
-# 일괄(Batch) 정규화
+# 일괄(Batch) 정규화 (멀티프로세싱 백엔드 지원)
 curl -X POST http://127.0.0.1:8000/normalize/batch \
   -H "Content-Type: application/json" \
-  -d '{"texts": ["Hello   world", "аpple.com"], "preset": "security_strict"}'
+  -d '{"texts": ["Hello   world", "аpple.com"], "preset": "security_strict", "include_risk": true, "backend": "process", "n_jobs": 4}'
 ```
 
 ---
 
-## 결과 직렬화 (Serialization)
+## 결과 직렬화 및 역직렬화 (Serialization & Deserialization)
+
+감사 로그 저장, 분산 캐싱, 마이크로서비스 간 메시지 큐 통신을 위한 완벽한 직렬화 및 역직렬화(Round-trip)를 지원합니다:
 
 ```python
-# 감사 로그 저장을 위한 직렬화 (dict 및 JSON 지원)
+from secnorm.models import NormalizationResult
+from secnorm.spanmap import SpanMap
+from secnorm.risk import RiskReport
+
+# 1. 직렬화 (dict 및 JSON 지원)
 data = result.to_dict()
 json_str = result.to_json(indent=2)
 
 # 민감정보(원본 텍스트) 제외 직렬화
 sanitized_json = result.to_json(include_raw_text=False)
+
+# 2. 역직렬화 (완전한 객체 복원 및 역추적 유지)
+restored_result = NormalizationResult.from_dict(data)
+# 또는 JSON 문자열로부터 직접 복원
+restored_from_json = NormalizationResult.from_json(json_str)
+
+# 복원된 객체에서도 SpanMap 매핑 및 Risk evaluation 완전 동작
+print(restored_result.normalized_text)
+report = restored_result.evaluate_risk()
+print(report.score, report.level)
 ```
 
 ---
