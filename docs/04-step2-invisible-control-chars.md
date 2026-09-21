@@ -15,18 +15,18 @@ Unicode General Category 기준으로 분류하고, 카테고리별로 정책을
 | `Cf` — bidi control | LRE/RLE/LRO/RLO/PDF `U+202A`-`U+202E`, LRI/RLI/FSI/PDI `U+2066`-`U+2069` | 제거 + **`high`** 플래그 (`bidi_override`) — 파일명/도메인/텍스트 표시 순서를 조작해 사용자를 속이는 "Trojan Source"류 공격에 사용됨 |
 | `Cf` — BOM | `U+FEFF` | 문자열 맨 앞에만 있으면 조용히 제거(인코딩 부산물), 중간에 있으면 제거 + `low` 플래그 |
 | **Unicode Tag 문자** | `U+E0000`-`U+E007F` | 제거 + **`high`** 플래그 (`tag_char_smuggling`) — 2024년 이후 알려진 LLM 프롬프트 인젝션 기법("ASCII smuggling"): 화면에는 전혀 안 보이지만 태그 문자로 인코딩된 아스키 텍스트를 프롬프트에 숨겨 전달하는 수법. 이 단계에서 최우선으로 다룬다. |
-| **Variation Selector (특히 VS supplement)** | `U+FE00`-`U+FE0F`, `U+E0100`-`U+E01EF` | 이모지 뒤에 정상적으로 붙는 `U+FE0F`(emoji presentation) 등은 허용, 그 외 문맥(일반 문자 뒤에 연속 사용, 특히 VS supplement 블록)은 제거 + `high` 플래그 (`tag_char_smuggling`으로 통합 분류) — 최근 보고된 variation-selector 기반 스테가노그래피 인코딩 대응 |
+| **Variation Selector (특히 VS supplement)** | `U+FE00`-`U+FE0F`, `U+E0100`-`U+E01EF` | 이모지 뒤에 정상적으로 붙는 `U+FE0F`(emoji presentation) 및 CJK 한자 바로 뒤의 일본어 IVS 1개는 허용, 그 외 문맥(비한자/일반 문자 뒤, 2개 이상 연속 사용 등)은 제거 + `high` 플래그 (`tag_char_smuggling`으로 통합 분류) — variation-selector 기반 스테가노그래피 인코딩 대응 |
 | `Co` (Private Use Area) | `U+E000`-`U+F8FF` 등 | 기본 유지 (커스텀 이모지/아이콘 폰트 등 정상 사용 사례 존재), `low` 플래그만 |
 | `Cn` (미할당 코드포인트) | 현재 Unicode 표준에 없는 코드포인트 | 제거 + `low` 플래그 |
 | 기타 비정상 공백류 문자 | Mongolian vowel separator `U+180E`, Hangul filler `U+3164`, `U+FFA0` (한글 반각 필러) | 제거 + `medium` 플래그 (`U+3164`/`U+FFA0`는 한글 자모를 시각적으로 감추는 데 실제로 악용된 사례가 있음) |
 
-### Variation Selector 정책 갱신 (구현 예정)
+### Variation Selector 세부 정책 및 예외 (H, I 반영 완료)
 
-> 아래 내용은 설계만 확정됐고 **코드에는 아직 반영되지 않았다.** 근거와 구현 계획은 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)의 H, I 항목 참고. 위 표의 VS 행은 현재 구현 기준이며, 구현이 끝나면 표를 이 내용에 맞춰 고친다.
+근거와 설계 배경은 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)의 H, I 항목 참고.
 
-- **일본어 IVS 예외 (H)**: VS supplement(`U+E0100`-`U+E01EF`)는 일본어 인명·지명에 쓰이는 IVS(이체자 선택자)의 코드포인트이기도 하다. **CJK 한자 바로 뒤에 정확히 1개**만 오면 유지하고 플래그도 남기지 않는다. 2개 이상 연속되거나, 한자가 아닌 문자(이모지·영문 등) 뒤이거나, 문자열 맨 앞이면 지금처럼 전체 제거 + `high`(`tag_char_smuggling`). `strip_variation_selectors="all"`이면 IVS도 제거한다.
-  - **알려진 잔여 위험**: IVD 등록 조합인지는 검증하지 않으므로, 한자마다 IVS를 1개씩 분산해 붙이는 스테가노그래피는 탐지되지 않는다 (연속 VS 방식은 계속 차단됨).
-- **`_is_emoji_ish()` 기준 축소 (I)**: 일반 VS(`U+FE00`-`U+FE0F`)와 ZWJ 보존 판정에 쓰는 emoji-ish 판정에서 ASCII 범위의 `Sk`(`^`, `` ` ``)를 제외한다. 피부톤 수정자(`U+1F3FB`-`U+1F3FF`, `Sk`)는 계속 emoji-ish로 인정한다. 현재는 `^`/`` ` `` 뒤의 `U+FE0F`가 플래그 없이 통과한다.
+- **일본어 IVS 예외 (H)**: VS supplement(`U+E0100`-`U+E01EF`)는 일본어 인명·지명에 쓰이는 IVS(이체자 선택자)의 코드포인트이기도 하다. **CJK 한자 바로 뒤에 정확히 1개**만 오면 정상 표기로 인정하여 유지하고 플래그도 남기지 않는다. 2개 이상 연속되거나, 한자가 아닌 문자(이모지·영문 등) 뒤이거나, 문자열 맨 앞이면 전체 제거 + `high`(`tag_char_smuggling`). `strip_variation_selectors="all"`이면 IVS도 제거한다.
+  - **알려진 잔여 위험**: IVD(Ideographic Variation Database) 등록 조합인지는 검증하지 않으므로, 한자마다 IVS를 1개씩 분산해 붙이는 스테가노그래피는 탐지되지 않는다 (연속 VS 방식은 계속 차단됨).
+- **`_is_emoji_ish()` 판정 축소 (I)**: 일반 VS(`U+FE00`-`U+FE0F`)와 ZWJ 보존 판정에 쓰는 emoji-ish 판정에서 ASCII 범위의 `Sk`(`^`, `` ` ``)를 제외한다. 피부톤 수정자(`U+1F3FB`-`U+1F3FF`, `Sk`)는 계속 emoji-ish로 인정되며, `^`/`` ` `` 뒤의 `U+FE0F`는 비정상적인 문맥으로 판단되어 제거 및 `high` 플래그가 부여된다.
 
 ## 정책 파라미터
 
@@ -67,6 +67,11 @@ class InvisibleControlStepConfig:
 | Private Use Area (`private_use_policy="flag"` 또는 `"strip"`) | `private_use_char` |
 | 미할당 코드포인트 (`Cn`) | `unassigned_codepoint` |
 | Variation Selector (일반/서플리먼트 모두, 의심스러운 문맥) | `tag_char_smuggling` (문서 원안대로 통합) |
+
+### 구현 노트: Emoji-ish 판정 및 CJK 한자 범위
+
+- `_is_emoji_ish()`: Unicode category `So`, 비ASCII `Sk`(피부톤 수정자 `U+1F3FB`-`U+1F3FF`), Regional Indicator(`U+1F1E6`-`U+1F1FF`), 일부 기호 코드포인트를 emoji-ish로 판정한다. ASCII `Sk`(`^`, `` ` ``)는 제외된다.
+- `_CJK_IDEOGRAPH_RANGES`: CJK Unified Ideographs (`U+4E00`-`U+9FFF`), Extension A (`U+3400`-`U+4DBF`), Compatibility (`U+F900`-`U+FAFF`), Extension B~I 및 호환 보충(`U+20000`-`U+323AF`)을 포함하는 코드포인트 테이블로 한자 뒤 IVS 여부를 검증한다.
 
 ## 예시
 

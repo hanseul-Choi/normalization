@@ -167,3 +167,106 @@ def test_text_zwj_smuggling_stripped():
     assert output.text == "password"
     assert any(f.category == "zero_width_injection" for f in output.flags)
 
+
+def test_ascii_sk_with_variation_selector_stripped_and_flagged():
+    # Item I: ASCII Sk (^, `) must not be treated as emoji-ish
+    # ^ + VS16
+    output_caret = _run("^\uFE0F")
+    assert output_caret.text == "^"
+    assert len(output_caret.flags) == 1
+    assert output_caret.flags[0].category == "tag_char_smuggling"
+    assert output_caret.flags[0].severity == "high"
+
+    # ` + VS16
+    output_backtick = _run("`\uFE0F")
+    assert output_backtick.text == "`"
+    assert len(output_backtick.flags) == 1
+    assert output_backtick.flags[0].category == "tag_char_smuggling"
+    assert output_backtick.flags[0].severity == "high"
+
+    # Normal emoji with VS16 should still be preserved without flags
+    output_emoji = _run("☀️")  # \u2600\uFE0F
+    assert output_emoji.text == "☀️"
+    assert output_emoji.flags == []
+
+
+def test_japanese_ivs_after_cjk_preserved():
+    # Item H: Single VS supplement after CJK ideograph should be preserved without flag
+    text = "葛\U000E0100"
+    output = _run(text)
+    assert output.text == text
+    assert output.flags == []
+
+    text_mid = "葛\U000E0100城"
+    output_mid = _run(text_mid)
+    assert output_mid.text == text_mid
+    assert output_mid.flags == []
+
+    # Extension B ideograph + IVS
+    text_ext = "\U00020000\U000E0100"
+    output_ext = _run(text_ext)
+    assert output_ext.text == text_ext
+    assert output_ext.flags == []
+
+
+def test_consecutive_ivs_after_cjk_stripped_and_flagged():
+    # Item H: 2 or more consecutive VS supplements after CJK are stripped as steganography
+    text = "葛\U000E0100\U000E0101"
+    output = _run(text)
+    assert output.text == "葛"
+    assert len(output.flags) == 1
+    assert output.flags[0].category == "tag_char_smuggling"
+    assert output.flags[0].severity == "high"
+
+
+def test_ivs_after_non_cjk_or_leading_stripped_and_flagged():
+    # Leading VS supplement
+    output_lead = _run("\U000E0100")
+    assert output_lead.text == ""
+    assert any(f.category == "tag_char_smuggling" and f.severity == "high" for f in output_lead.flags)
+
+    # After Latin character
+    output_latin = _run("A\U000E0100")
+    assert output_latin.text == "A"
+    assert any(f.category == "tag_char_smuggling" and f.severity == "high" for f in output_latin.flags)
+
+    # After emoji
+    output_emoji = _run("\U0001F600\U000E0100")
+    assert output_emoji.text == "\U0001F600"
+    assert any(f.category == "tag_char_smuggling" and f.severity == "high" for f in output_emoji.flags)
+
+
+def test_ivs_strip_variation_selectors_all_and_none():
+    # strip_variation_selectors="all": IVS should also be stripped
+    cfg_all = NormalizationConfig(
+        invisible_control=InvisibleControlStepConfig(strip_variation_selectors="all")
+    )
+    output_all = _run("葛\U000E0100", config=cfg_all)
+    assert output_all.text == "葛"
+    assert any(f.category == "tag_char_smuggling" and f.severity == "high" for f in output_all.flags)
+
+    # strip_variation_selectors="none": IVS preserved
+    cfg_none = NormalizationConfig(
+        invisible_control=InvisibleControlStepConfig(strip_variation_selectors="none")
+    )
+    output_none = _run("葛\U000E0100", config=cfg_none)
+    assert output_none.text == "葛\U000E0100"
+    assert output_none.flags == []
+
+
+def test_ivs_mixed_with_other_controls():
+    # When text contains both IVS and ZWSP, only ZWSP should be stripped
+    output = _run("葛\U000E0100\u200B城")
+    assert output.text == "葛\U000E0100城"
+    assert len(output.flags) == 1
+    assert output.flags[0].category == "zero_width_injection"
+
+
+def test_ivs_e2e_preset_stabilization():
+    import secnorm
+
+    result = secnorm.normalize("葛\U000E0100城", preset="security_strict")
+    assert result.normalized_text == "葛\U000E0100城"
+    assert result.flags == []
+
+

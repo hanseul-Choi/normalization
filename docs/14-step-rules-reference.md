@@ -5,7 +5,7 @@
 - 기준: `main` @ `f6030f2` (2026-09-21). 이후 코드가 바뀌면 이 문서도 함께 갱신한다.
 - 예시의 입력/출력은 전부 `src/secnorm/steps/*.py`를 단계별로 단독 실행해 확인한 값이다 (추측 아님). 아래 "확인 방법" 참고.
 - **설계 문서와 구현이 다른 부분**은 [알려진 제한과 주의점](#알려진-제한과-주의점)에 모았다.
-- 아직 구현되지 않고 계획만 확정된 변경은 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)의 H, I 항목에 있다. 이 문서는 구현된 동작만 적는다.
+- 보안 감사 후속 과제 H(일본어 IVS 허용) 및 I(ASCII Sk 제외)는 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)에 따라 구현 완료되어 이 문서에 반영되어 있다.
 
 ---
 
@@ -87,7 +87,7 @@
 | 3 | zero-width: `U+200B` ZWSP, `U+200C` ZWNJ, `U+200D` ZWJ, `U+2060` WJ, `U+00AD` SHY | 제거. 단 **ZWJ가 이모지 사이면 유지** ([4-3](#4-3-이모지-zwj)) | `strip_zero_width` | `zero_width_injection` / medium |
 | 4 | bidi 제어: `U+202A`-`U+202E`, `U+2066`-`U+2069` | 제거 | `strip_bidi_override` | `bidi_override` / **high** |
 | 5 | Tag 문자 `U+E0000`-`U+E007F` | 제거 | `strip_tag_char` | `tag_char_smuggling` / **high** |
-| 6 | VS supplement `U+E0100`-`U+E01EF` | **문맥 무관 항상 제거** | `strip_variation_selector` | `tag_char_smuggling` / **high** |
+| 6 | VS supplement `U+E0100`-`U+E01EF` | CJK 한자 바로 뒤 1개는 유지(일본어 IVS), 그 외는 제거 | `strip_variation_selector` | `tag_char_smuggling` / **high** (유지 시 없음) |
 | 7 | VS1-16 `U+FE00`-`U+FE0F` | [4-2](#4-2-variation-selector) 참고 | `strip_variation_selector` | `tag_char_smuggling` / high 또는 없음 |
 | 8 | 비정상 공백: `U+180E`, `U+3164`, `U+FFA0` | 제거 | `strip_abnormal_space` | `invisible_spacing` / medium |
 | 9 | `Co` Private Use (`U+E000`-`U+F8FF` 등) | `private_use_policy`에 따름 (기본 `flag`) | `strip_private_use` | `private_use_char` / low |
@@ -97,15 +97,15 @@
 
 ### 4-2. Variation Selector
 
-일반 VS(`U+FE00`-`U+FE0F`) 처리다. `strip_variation_selectors` 설정으로 3가지 모드가 있다.
+일반 VS(`U+FE00`-`U+FE0F`) 및 VS supplement(`U+E0100`-`U+E01EF`) 처리다. `strip_variation_selectors` 설정으로 3가지 모드가 있다.
 
 | 모드 | 동작 |
 |---|---|
-| `suspicious_only` (기본) | **바로 앞 문자가 emoji-ish이면 유지**, 아니면 제거 + `high` flag |
-| `all` | 전부 제거. 이모지 뒤 VS는 **flag 없이** 제거, 의심 문맥이면 `high` flag (`llm_input_sanitize`가 사용) |
+| `suspicious_only` (기본) | **바로 앞 문자가 emoji-ish이면 일반 VS 유지, CJK 한자 바로 뒤 VS supplement 1개는 유지**, 아니면 제거 + `high` flag |
+| `all` | 전부 제거. 이모지 뒤 VS는 **flag 없이** 제거, 의심 문맥이면 `high` flag (`llm_input_sanitize`가 사용, IVS도 제거) |
 | `none` | 손대지 않음 |
 
-"emoji-ish"는 `_is_emoji_ish()`가 판정한다: 유니코드 카테고리 `So`/`Sk`, Regional Indicator(`U+1F1E6`-`U+1F1FF`), 일부 기호(♀ ♂ ⚕ ⚖ ✈ ✉ ✊-✍). 실제 이모지 속성 테이블이 아니라 **카테고리 기반 휴리스틱**이다.
+"emoji-ish"는 `_is_emoji_ish()`가 판정한다: 유니코드 카테고리 `So`, 비ASCII `Sk`(피부톤 수정자 `U+1F3FB`-`U+1F3FF`, ASCII `^`/`` ` ``는 제외), Regional Indicator(`U+1F1E6`-`U+1F1FF`), 일부 기호(♀ ♂ ⚕ ⚖ ✈ ✉ ✊-✍). 실제 이모지 속성 테이블이 아니라 **카테고리 기반 휴리스틱**이다.
 
 | 입력 | 결과 | flag |
 |---|---|---|
@@ -113,10 +113,13 @@
 | `❤` + `U+FE0E` (텍스트 표시형) | 유지 | 없음 |
 | `❤` + `U+FE0F` + `U+FE0F` | 첫 VS만 유지, 둘째 제거 | `tag_char_smuggling` / high |
 | `a` + `U+FE0F` | 제거 | `tag_char_smuggling` / high |
+| `^` + `U+FE0F` | 제거 (ASCII `Sk` 제외) | `tag_char_smuggling` / high |
+| `葛` + `U+E0100` (일본어 IVS) | 유지 (한자 뒤 1개 허용) | 없음 |
+| `葛` + `U+E0100` + `U+E0101` | 둘 다 제거 (연속 2개 이상) | `tag_char_smuggling` / high |
 | `❤` + `U+FE0F` (`all` 모드) | 제거 | 없음 |
 | `a` + `U+FE0F` (`none` 모드) | 유지 | 없음 |
 
-VS supplement(`U+E0100`-`U+E01EF`)는 이모지 뒤여도 제거된다 (표 6번). 현재 구현은 일본어 IVS(이체자 선택자)도 여기에 걸린다 — [알려진 제한](#알려진-제한과-주의점) 참고.
+VS supplement(`U+E0100`-`U+E01EF`)는 원칙적으로 제거되지만, **CJK 한자 바로 뒤에 정확히 1개** 오는 경우 일본어 IVS(이체자 선택자)로 인정되어 보존된다(플래그 없음). 2개 이상 연속되거나 비한자 뒤에 오면 스테가노그래피로 간주되어 `high` 플래그와 함께 제거된다.
 
 ### 4-3. 이모지 ZWJ
 
@@ -405,7 +408,7 @@ flag는 치환 횟수가 **3 이상**일 때만 `leetspeak` / low (span은 텍�
 
 ## 알려진 제한과 주의점
 
-아래는 코드를 읽고 실제로 돌려서 확인한 **현재 동작의 함정**이다. 아직 이슈로 등록되거나 수정 계획이 잡힌 것은 아니다 (H, I는 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)에 별도 계획).
+아래는 코드를 읽고 실제로 돌려서 확인한 **현재 동작의 함정**이다. 아직 이슈로 등록되거나 수정 계획이 잡힌 것은 아니다.
 
 1. **2단계가 `\r`·VT·FF를 지워서 3단계 규칙이 도달하지 못한다.**
    `\r`(CR), `\x0b`(VT), `\x0c`(FF)는 `Cc`라서 2단계에서 **삭제**된다. 그래서 2단계가 켜진 프리셋에서는 단독 CR/VT/FF가 줄바꿈이 아니라 아무것도 아니게 되어 **앞뒤 단어가 붙는다.**
@@ -423,7 +426,7 @@ flag는 치환 횟수가 **3 이상**일 때만 `leetspeak` / low (span은 텍�
 3. **2단계가 ZWNJ(`U+200C`)를 언어와 무관하게 제거한다.**
    `می` ZWNJ `خواهم`(페르시아어) → `میخواهم`. `docs/04`는 "ZWNJ/ZWJ가 서체 결합에 쓰이는 언어 문맥 예외 여지"를 언급하지만 **구현되어 있지 않다.** (이모지 ZWJ만 예외.)
 
-4. **일본어 IVS 오탐과 `^`·`` ` `` 뒤 VS 통과.** 2단계 VS 정책의 두 결함 → `security-audit-fixes-plan.md` **H, I** (계획만 있고 미구현). 요약: 한자 + `U+E0100`이 정상 일본어인데도 `high`로 제거되고, `^`+`U+FE0F`는 flag 없이 통과한다.
+4. **일본어 IVS 및 `^`·`` ` `` 뒤 VS 처리 (해결 완료).** 2단계 VS 정책의 두 결함(H, I)은 `fix/normalization-security-audit-step2-vs` 브랜치에서 해결되었다 (CJK 한자 바로 뒤 VS supplement 1개 허용 및 ASCII `Sk` emoji-ish 제외). 단, 한자마다 IVS를 1개씩 분산 배치하는 분산형 IVS 스테가노그래피는 IVD 데이터베이스 미검증으로 인한 알려진 잔여 위험으로 남는다.
 
 5. **6단계 aggressive variant는 base64/hex 토큰도 leet 치환한다.**
    `aGVsbG8gPHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==`의 variant는 `aGVsbG8gPHNjcmlwdDshbGVydCgx...`로 **원본이 깨진다.** 또 16자 이상 hex 문자열(`48656c6c6f...`)이 숫자·문자 혼합이라 `leetspeak` flag도 함께 발생한다. 정규 텍스트는 영향이 없고, variant로 매칭할 때만 문제가 된다.

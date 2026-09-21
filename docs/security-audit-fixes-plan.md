@@ -2,7 +2,7 @@
 
 이 문서는 `fix/normalization-security-audit` 브랜치에서 처리할 6건의 보고된 버그 + 조사 중 추가로 발견한 1건(총 7건)에 대한 근본 원인 분석과 구현 계획이다. 로드맵(`docs/13-roadmap.md`)의 Phase 0~13은 이미 전부 완료된 v1 이후 유지보수 작업이므로, 별도 Phase로 편입하지 않고 일반 버그수정 브랜치로 진행한다 (사용자 확인 완료).
 
-> **후속 추가 (2026-09-20)**: A~G(7건)는 `main`에 반영 완료된 뒤, 2단계(invisible/control)의 Variation Selector 처리를 재점검하다 2건(**H**, **I**)을 추가로 발견했다. 두 항목은 `fix/normalization-security-audit-step2-vs` 브랜치에서 처리하며, 이 문서 갱신 시점에는 **문서만 갱신되고 코드는 아직 미구현**이다 (사용자 확인 완료: 문서 선행, 코드/테스트는 별도 작업).
+> **후속 추가 (2026-09-20)**: A~G(7건)는 `main`에 반영 완료된 뒤, 2단계(invisible/control)의 Variation Selector 처리를 재점검하다 2건(**H**, **I**)을 추가로 발견했다. 두 항목은 `fix/normalization-security-audit-step2-vs` 브랜치에서 **구현, 테스트 및 문서 갱신이 완료**되었다.
 
 각 항목은 "근본 원인 → 수정 방안 → 변경 파일 → 문서 갱신 → 테스트"로 정리한다. 구현 순서는 [작업 순서](#작업-순서) 참고.
 
@@ -260,10 +260,10 @@ secnorm.normalize("aGVsbG8gPHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==", preset="securi
 6. **E** (이모지 ZWJ) — 독립적.
 7. **B** (fixpoint/멱등성) — 가장 아키텍처 영향이 크고, A/D/G가 만들어내는 flag들이 fixpoint 재실행에서 이중 계산되지 않는지 함께 검증해야 하므로 마지막에 진행.
 
-> A~G는 `main`에 반영 완료. 아래 후속 항목은 별도 브랜치(`fix/normalization-security-audit-step2-vs`)에서 진행한다.
+> A~G는 `main`에 반영 완료. 후속 항목(H, I)은 `fix/normalization-security-audit-step2-vs` 브랜치에서 구현 완료.
 
-8. **I** (`Sk` 판정 축소) — 한 줄 수준의 좁은 변경이고 E의 회귀 테스트를 그대로 재사용하므로 먼저 진행.
-9. **H** (IVS 허용) — I 이후. 같은 파일·같은 `_classify()` 분기를 건드리므로 I의 판정 기준이 확정된 뒤에 얹는다. H 완료 후 B가 만든 fixpoint 재실행(`security_*` 프리셋)에서 허용된 IVS가 매 반복마다 안정적으로 유지되는지(반복 사이에 제거/재플래그되지 않는지) 확인한다.
+8. **I** (`Sk` 판정 축소) [완료] — `_is_emoji_ish()`에서 ASCII `Sk`(`^`, `` ` ``) 제외.
+9. **H** (IVS 허용) [완료] — CJK 한자 바로 뒤 1개 VS supplement 허용, 2개 이상 연속/비한자 뒤는 `high` 제거. 전체 테스트 및 fixpoint 안정성 검증 통과.
 
 각 항목 완료 시 전체 테스트 스위트(`pytest`)와 벤치마크(`pytest-benchmark`, 특히 B 이후 보안 프리셋 3종)를 재실행한다. 문서(`docs/0X-*.md`)는 코드와 같은 커밋에서 함께 갱신한다 (CLAUDE.md 원칙).
 

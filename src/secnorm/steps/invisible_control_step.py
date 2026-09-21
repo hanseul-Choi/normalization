@@ -38,6 +38,31 @@ _VS_SUPPLEMENT_RANGE = range(0xE0100, 0xE01F0)
 # Mongolian vowel separator, Hangul filler, halfwidth Hangul filler
 _ABNORMAL_SPACE = frozenset(chr(c) for c in (0x180E, 0x3164, 0xFFA0))
 
+_CJK_IDEOGRAPH_RANGES = (
+    (0x3400, 0x4DBF),    # Extension A
+    (0x4E00, 0x9FFF),    # CJK Unified Ideographs
+    (0xF900, 0xFAFF),    # CJK Compatibility Ideographs
+    (0x20000, 0x2A6DF),  # Extension B
+    (0x2A700, 0x2B739),  # Extension C
+    (0x2B740, 0x2B81D),  # Extension D
+    (0x2B820, 0x2CEA1),  # Extension E
+    (0x2CEB0, 0x2EBE0),  # Extension F
+    (0x2EBF0, 0x2EE5D),  # Extension I
+    (0x2F800, 0x2FA1F),  # CJK Compatibility Ideographs Supplement
+    (0x30000, 0x3134A),  # Extension G
+    (0x31350, 0x323AF),  # Extension H
+)
+
+
+def _is_cjk_ideograph(ch: str | None) -> bool:
+    if ch is None:
+        return False
+    cp = ord(ch)
+    for start, end in _CJK_IDEOGRAPH_RANGES:
+        if start <= cp <= end:
+            return True
+    return False
+
 
 @dataclass(frozen=True)
 class _Decision:
@@ -51,7 +76,9 @@ def _is_emoji_ish(ch: str | None) -> bool:
     if ch is None:
         return False
     cat = unicodedata.category(ch)
-    if cat in ("So", "Sk"):
+    if cat == "So":
+        return True
+    if cat == "Sk" and ord(ch) > 0x7F:
         return True
     cp = ord(ch)
     if 0x1F1E6 <= cp <= 0x1F1FF:  # Regional indicator
@@ -129,6 +156,12 @@ def _classify(
     if cp in _VS_SUPPLEMENT_RANGE:
         if cfg.strip_variation_selectors == "none":
             return None
+        if cfg.strip_variation_selectors != "all":
+            is_after_cjk = _is_cjk_ideograph(prev)
+            next_cp = ord(text[index + 1]) if index + 1 < len(text) else None
+            next_is_vs = next_cp is not None and (next_cp in _VS_RANGE or next_cp in _VS_SUPPLEMENT_RANGE)
+            if is_after_cjk and not next_is_vs:
+                return None
         return _Decision("strip", "variation_selector", "tag_char_smuggling", "high")
 
     if cp in _VS_RANGE:
