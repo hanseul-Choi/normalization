@@ -2,6 +2,8 @@
 
 이 문서는 `fix/normalization-security-audit` 브랜치에서 처리할 6건의 보고된 버그 + 조사 중 추가로 발견한 1건(총 7건)에 대한 근본 원인 분석과 구현 계획이다. 로드맵(`docs/13-roadmap.md`)의 Phase 0~13은 이미 전부 완료된 v1 이후 유지보수 작업이므로, 별도 Phase로 편입하지 않고 일반 버그수정 브랜치로 진행한다 (사용자 확인 완료).
 
+> **후속 추가 (2026-09-20)**: A~G(7건)는 `main`에 반영 완료된 뒤, 2단계(invisible/control)의 Variation Selector 처리를 재점검하다 2건(**H**, **I**)을 추가로 발견했다. 두 항목은 `fix/normalization-security-audit-step2-vs` 브랜치에서 처리하며, 이 문서 갱신 시점에는 **문서만 갱신되고 코드는 아직 미구현**이다 (사용자 확인 완료: 문서 선행, 코드/테스트는 별도 작업).
+
 각 항목은 "근본 원인 → 수정 방안 → 변경 파일 → 문서 갱신 → 테스트"로 정리한다. 구현 순서는 [작업 순서](#작업-순서) 참고.
 
 ---
@@ -183,6 +185,69 @@ secnorm.normalize("aGVsbG8gPHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==", preset="securi
 
 ---
 
+## H. (Medium, 후속 추가) 일본어 IVS가 스테가노그래피로 오탐되어 제거됨
+
+**재현** (`secnorm.normalize(...)`, 2단계 결과만 발췌):
+
+| 입력 | 결과 |
+|---|---|
+| `"葛\U000E0100"` (葛 + IVS `U+E0100`) | VS 제거 + `high` `tag_char_smuggling` 플래그 |
+| `"\U0001F600\U000E0100"` (😀 + VS supplement) | VS 제거 + `high` 플래그 (이쪽은 의도된 동작) |
+| `"字︀"` (字 + `U+FE00`) | VS 제거 + `high` 플래그 |
+
+**근본 원인**: `src/secnorm/steps/invisible_control_step.py`의 `_classify()`는 VS supplement(`U+E0100`-`U+E01EF`)를 문맥과 무관하게 무조건 `strip` + `high`로 처리한다 (`cp in _VS_SUPPLEMENT_RANGE` 분기). 그런데 이 블록은 **IVS(Ideographic Variation Sequence, 이체자 선택자)**의 정식 코드포인트 범위이기도 하다. IVS는 한자 이체자(예: 葛城의 `葛` 이체자)를 구분하는 표준 메커니즘으로, 일본어 인명·지명 표기(주민 정보, 고객명 등)에 실제로 쓰인다. v1 지원 언어에 `ja`가 포함돼 있으므로 정상 일본어 입력이 `high` 위험으로 표시되는 오탐이 발생한다. `docs/04-step2-invisible-control-chars.md`의 VS 행은 "VS supplement 블록은 제거 + `high`"로만 적혀 있어 IVS 사용 사례가 문서에서도 누락돼 있었다.
+
+**설계 결정 (사용자 확인 완료)**: **CJK 한자 뒤의 VS supplement 1개는 허용**한다.
+- 허용 조건 (모두 만족해야 함):
+  1. 바로 앞 문자가 CJK 한자(CJK Unified Ideographs 및 Extension A~ 계열: `U+3400`-`U+4DBF`, `U+4E00`-`U+9FFF`, `U+20000`-`U+323AF` 등)이고
+  2. 그 뒤의 VS supplement가 **정확히 1개**이며 (다음 문자가 또 VS 계열이 아님)
+  3. `strip_variation_selectors != "all"` 인 경우.
+- 허용 시 그대로 유지하며 **플래그도 남기지 않는다.**
+- 조건을 하나라도 어기면(2개 이상 연속, 한자가 아닌 문자 뒤, 문자열 맨 앞 등) **기존처럼 연속 구간 전체를 제거하고 `high` 플래그**를 남긴다. 연속 VS supplement를 이용한 바이트 인코딩 방식의 스테가노그래피(알려진 공격 형태)는 계속 차단된다.
+- `strip_variation_selectors="all"`이면 IVS도 제거한다 (엄격 모드 유지 수단).
+- 일반 VS(`U+FE00`-`U+FE0F`)를 한자 뒤에서 허용할지는 이번 결정 범위 밖이다 ([열린 질문](#열린-질문) 참고). 현재 동작(제거 + `high`)을 유지한다.
+
+**잔여 위험 (문서에 명시해 둘 것)**: 이 정책은 "한자 뒤 1개"만 보고 IVD(Ideographic Variation Database)에 등록된 실제 조합인지는 검증하지 않는다. 따라서 **한자마다 VS supplement를 1개씩 붙여 문장 전체에 분산시키는 방식**(한자 1글자당 최대 log2(240) ≈ 7.9bit)은 이 규칙으로는 탐지되지 않는다. 연속 VS를 쓰는 기존 공격 형태는 막히지만, 분산형 변형은 남는다. 완화안은 [열린 질문](#열린-질문)에 남긴다.
+
+**수정 방안**:
+1. `_classify()`의 VS supplement 분기에서, 위 허용 조건을 만족하면 `None`(유지)을 반환하는 예외를 추가한다. 앞 문자 조회는 이미 있는 `_skip_vs_backward`를 쓰지 말고(연속 VS를 건너뛰어 버려 "정확히 1개" 판정이 깨짐) `prev`(바로 앞 문자)로 직접 판정하고, "다음 문자가 VS 계열이 아님"은 `text[index + 1]` 조회로 확인한다. `_classify`는 현재 다음 문자를 받지 않으므로 E에서 필요했던 것과 같은 방식으로 `text`/`index`를 이용한다(이미 `text` 인자가 있음).
+2. CJK 한자 판정용 코드포인트 범위 상수(`_CJK_IDEOGRAPH_RANGES`)를 같은 파일에 하드코딩 테이블로 추가한다. 별도 의존성은 쓰지 않는다 (`docs/11-dependencies.md`, `docs/04` "구현" 절의 기존 방침과 동일).
+3. 허용된 IVS는 변환/플래그를 남기지 않는다. 제거되는 쪽은 기존 `strip_variation_selector` rule과 `tag_char_smuggling` 카테고리를 그대로 쓴다 (플래그 카테고리 체계 변경 없음).
+
+**변경 파일**: `src/secnorm/steps/invisible_control_step.py`.
+
+**문서 갱신**: `docs/04-step2-invisible-control-chars.md`의 Variation Selector 행에 IVS 예외 조항과 잔여 위험 추가. "구현 노트"에도 `_is_emoji_ish`/`_CJK_IDEOGRAPH_RANGES`의 역할 구분을 기록.
+
+**테스트**: 다음을 `tests/test_invisible_control_step.py`에 추가.
+- 한자 + IVS 1개 → 유지, 플래그 없음 (`ja` 입력 대표 케이스, 예: `葛\U000E0100城`).
+- 한자 + IVS 2개 이상 연속 → 전체 제거 + `high` 플래그.
+- 이모지/영문자/문자열 맨 앞의 VS supplement → 기존처럼 제거 + `high` (회귀 방지).
+- `strip_variation_selectors="all"`이면 한자 뒤 IVS도 제거.
+- `strip_variation_selectors="none"`이면 변화 없음.
+- 한자 + IVS + ZWSP 등 다른 스머글링 문자가 섞여도 IVS 판정이 그 문자에 영향받지 않는지.
+
+---
+
+## I. (Low, 후속 추가) `Sk` 카테고리 확장으로 `^`/`` ` `` 뒤의 VS가 통과함
+
+**재현**: `secnorm.normalize("^️")` → 출력 `"^️"` (VS 유지), 2단계 변환/플래그 없음. `` ` ``도 동일.
+
+**근본 원인**: E 항목 수정 과정에서 피부톤 수정자(`U+1F3FB`-`U+1F3FF`)가 `Sk`라서 `_is_emoji_ish()`가 `So` 뿐 아니라 `Sk`(Modifier Symbol) 전체를 emoji-ish로 인정하도록 확장됐다. 그런데 `Sk`에는 ASCII `^`(`U+005E`)와 `` ` ``(`U+0060`)도 포함돼 있고(실제 `unicodedata.category`로 확인), 일반 VS(`U+FE00`-`U+FE0F`)의 "의심 문맥" 판정이 `_is_emoji_ish(prev)`에 의존하므로 이 두 문자 뒤의 VS는 정상 이모지 VS로 오인되어 통과한다. E의 부수 효과다.
+
+**위험도가 Low인 이유**: 캐리어 문자 1개당 살아남는 VS는 1개(두 번째 VS부터는 `prev`가 VS라서 `Sk`도 `So`도 아니므로 제거됨)라, 연속 VS로 대량 데이터를 숨기는 기존 공격은 여전히 차단된다. 다만 `^`/`` ` ``를 여러 번 깔고 각각에 VS 1개씩 붙이는 분산형 스테가노그래피는 이 경로로 통과한다.
+
+**설계 결정**: `_is_emoji_ish()`의 `Sk` 인정 범위에서 **ASCII 범위(`U+0000`-`U+007F`)의 `Sk`를 제외**한다 (`^`, `` ` ``). ASCII `Sk`는 이모지가 될 수 없고, 피부톤 수정자(`U+1F3FB`-`U+1F3FF`)는 계속 인정된다. 비ASCII `Sk`(`´`, `¨`, `¯`, `¸` 등)는 이번 수정 범위에서는 그대로 두며 [열린 질문](#열린-질문)에 남긴다.
+
+**수정 방안**: `_is_emoji_ish()`의 `if cat in ("So", "Sk")` 분기를 `So`는 그대로, `Sk`는 `ord(ch) > 0x7F`일 때만 True가 되도록 좁힌다. 이 함수는 ZWJ 보존(E)에도 쓰이므로 ZWJ 판정에는 영향이 없는지(ASCII `Sk` 양옆의 ZWJ는 원래 emoji 시퀀스가 아님) 함께 확인한다.
+
+**변경 파일**: `src/secnorm/steps/invisible_control_step.py`.
+
+**문서 갱신**: `docs/04-step2-invisible-control-chars.md` 구현 노트에 `_is_emoji_ish()`의 판정 기준(`So`, 비ASCII `Sk`, Regional Indicator, 일부 기호)을 명시.
+
+**테스트**: `^` + `U+FE0F`, `` ` `` + `U+FE0F` → VS 제거 + `high` 플래그 확인. E의 회귀 방지 확인: 피부톤+ZWJ+직업, VS16+ZWJ+성별기호, 가족 이모지 시퀀스가 여전히 보존되는지 재실행. 정상 이모지 + `U+FE0F`/`U+FE0E`가 계속 유지되는지도 확인.
+
+---
+
 ## 작업 순서
 
 의존관계상 아래 순서를 권장한다 (각 커밋 단위로 나누고, 항목별로 관련 테스트를 함께 추가):
@@ -195,6 +260,11 @@ secnorm.normalize("aGVsbG8gPHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==", preset="securi
 6. **E** (이모지 ZWJ) — 독립적.
 7. **B** (fixpoint/멱등성) — 가장 아키텍처 영향이 크고, A/D/G가 만들어내는 flag들이 fixpoint 재실행에서 이중 계산되지 않는지 함께 검증해야 하므로 마지막에 진행.
 
+> A~G는 `main`에 반영 완료. 아래 후속 항목은 별도 브랜치(`fix/normalization-security-audit-step2-vs`)에서 진행한다.
+
+8. **I** (`Sk` 판정 축소) — 한 줄 수준의 좁은 변경이고 E의 회귀 테스트를 그대로 재사용하므로 먼저 진행.
+9. **H** (IVS 허용) — I 이후. 같은 파일·같은 `_classify()` 분기를 건드리므로 I의 판정 기준이 확정된 뒤에 얹는다. H 완료 후 B가 만든 fixpoint 재실행(`security_*` 프리셋)에서 허용된 IVS가 매 반복마다 안정적으로 유지되는지(반복 사이에 제거/재플래그되지 않는지) 확인한다.
+
 각 항목 완료 시 전체 테스트 스위트(`pytest`)와 벤치마크(`pytest-benchmark`, 특히 B 이후 보안 프리셋 3종)를 재실행한다. 문서(`docs/0X-*.md`)는 코드와 같은 커밋에서 함께 갱신한다 (CLAUDE.md 원칙).
 
 ## 열린 질문
@@ -202,3 +272,6 @@ secnorm.normalize("aGVsbG8gPHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==", preset="securi
 - **C**: 서버의 캐치올 예외 처리를 400(클라이언트 탓)과 500(서버 내부 오류) 중 어디로 통일할지 — 이번 사례(입력 타입 오류)는 400이 맞지만, 향후 다른 미검증 예외까지 전부 400으로 뭉뚱그리면 진짜 서버 버그도 클라이언트 탓처럼 보일 위험이 있음. 구현 시 판단하거나 별도로 여쭤볼 예정.
 - **G**: 재귀 디코딩 시 하위 파이프라인을 항상 `security_balanced`로 고정할지, 호출한 프리셋과 동일한(단, `decode_and_recurse=False`인) 설정을 재사용할지.
 - **A**의 `medium` severity 수치는 초안이며, 기존 어드버서리얼 코퍼스 테스트를 실제로 돌려본 뒤 임계값을 재조정할 수 있음.
+- **H (분산형 IVS 스테가노그래피)**: 한자마다 IVS 1개씩 붙이는 변형을 어떻게 다룰지. 후보: (a) IVD 등록 조합만 화이트리스트(정확하지만 데이터 테이블이 크고 갱신 필요, `docs/11-dependencies.md`의 "가벼운 의존성" 원칙과 충돌 가능), (b) 텍스트 내 IVS 밀도가 임계치를 넘으면(예: 한자 대비 비율 또는 절대 개수) `medium` 플래그(테이블 없이 구현 가능하지만 임계값 튜닝 필요), (c) 현 정책 유지하고 잔여 위험으로 문서화. 이번 결정(한자 뒤 1개 허용)만으로는 (c) 상태다.
+- **H (일반 VS의 한자 뒤 처리)**: `U+FE00`-`U+FE0F`가 CJK 호환 한자(`U+F900`-`U+FAFF`, `U+2F800`-`U+2FA1D`) 뒤에서 쓰이는 표준화 변이 시퀀스(StandardizedVariants)를 허용할지. 현재는 제거 + `high`.
+- **I (비ASCII `Sk`)**: `´`, `¨`, `¯`, `¸` 등 비ASCII `Sk` 뒤의 VS도 같은 이유로 통과한다. 피부톤 수정자(`U+1F3FB`-`U+1F3FF`)만 `Sk`로 인정하도록 더 좁힐지(더 엄격하지만 향후 이모지 수정자 추가 시 테이블 갱신 필요) 여부. 더 근본적인 대안은 `emoji-variation-sequences.txt` 기반의 정확한 판정이며, `docs/11-dependencies.md` 원칙상 별도 검토가 필요하다.

@@ -20,6 +20,14 @@ Unicode General Category 기준으로 분류하고, 카테고리별로 정책을
 | `Cn` (미할당 코드포인트) | 현재 Unicode 표준에 없는 코드포인트 | 제거 + `low` 플래그 |
 | 기타 비정상 공백류 문자 | Mongolian vowel separator `U+180E`, Hangul filler `U+3164`, `U+FFA0` (한글 반각 필러) | 제거 + `medium` 플래그 (`U+3164`/`U+FFA0`는 한글 자모를 시각적으로 감추는 데 실제로 악용된 사례가 있음) |
 
+### Variation Selector 정책 갱신 (구현 예정)
+
+> 아래 내용은 설계만 확정됐고 **코드에는 아직 반영되지 않았다.** 근거와 구현 계획은 [`security-audit-fixes-plan.md`](./security-audit-fixes-plan.md)의 H, I 항목 참고. 위 표의 VS 행은 현재 구현 기준이며, 구현이 끝나면 표를 이 내용에 맞춰 고친다.
+
+- **일본어 IVS 예외 (H)**: VS supplement(`U+E0100`-`U+E01EF`)는 일본어 인명·지명에 쓰이는 IVS(이체자 선택자)의 코드포인트이기도 하다. **CJK 한자 바로 뒤에 정확히 1개**만 오면 유지하고 플래그도 남기지 않는다. 2개 이상 연속되거나, 한자가 아닌 문자(이모지·영문 등) 뒤이거나, 문자열 맨 앞이면 지금처럼 전체 제거 + `high`(`tag_char_smuggling`). `strip_variation_selectors="all"`이면 IVS도 제거한다.
+  - **알려진 잔여 위험**: IVD 등록 조합인지는 검증하지 않으므로, 한자마다 IVS를 1개씩 분산해 붙이는 스테가노그래피는 탐지되지 않는다 (연속 VS 방식은 계속 차단됨).
+- **`_is_emoji_ish()` 기준 축소 (I)**: 일반 VS(`U+FE00`-`U+FE0F`)와 ZWJ 보존 판정에 쓰는 emoji-ish 판정에서 ASCII 범위의 `Sk`(`^`, `` ` ``)를 제외한다. 피부톤 수정자(`U+1F3FB`-`U+1F3FF`, `Sk`)는 계속 emoji-ish로 인정한다. 현재는 `^`/`` ` `` 뒤의 `U+FE0F`가 플래그 없이 통과한다.
+
 ## 정책 파라미터
 
 ```python
