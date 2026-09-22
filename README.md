@@ -293,6 +293,12 @@ print(report.score, report.level)
 
 ---
 
+## 품질 검증
+
+- [Unicode 정규화 Conformance 검증 리포트](docs/unicode-normalization-conformance-report.md) — Unicode 공식 `NormalizationTest.txt`(UAX #15, v18.0.0) 20,171개 케이스 전수 검증. 실패 건은 전부 라이브러리 Unicode 버전 지연 때문이며 정규화 알고리즘 자체의 결함은 0건.
+
+---
+
 ## 라이선스
 
 MIT License.
